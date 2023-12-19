@@ -8,7 +8,7 @@ package com.seedee.fgdbuilder;
  *
  * @author cdani
  */
-public enum Class {
+public enum EntityType {
     BASECLASS,
     SOLIDCLASS,
     POINTCLASS;

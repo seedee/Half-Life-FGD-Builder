@@ -9,7 +9,7 @@ package com.seedee.fgdbuilder;
  * @author cdani
  */
 public class Entity {
-    private Class entClass;
+    private EntityType entClass;
     private String name;
     private String description;
     private String inherits;
@@ -47,7 +47,7 @@ public class Entity {
     
     public static class Builder {
         //Required
-        private Class entClass;
+        private EntityType entClass;
         private String name;
         
         //Optional
@@ -59,7 +59,7 @@ public class Entity {
         private String decal;
         private String studio;
         
-        public Builder(Class entityClass, String entityName) {
+        public Builder(EntityType entityClass, String entityName) {
             entClass = entityClass;
             name = entityName;
         }
