@@ -36,10 +36,10 @@ public class FGDBuilder {
 
     private final String appTitle = "Half-Life FGD Builder";
     private File selectedFile;
-    private final DefaultListModel<String> entityListModel = new DefaultListModel<>();
-    private final JList<String> entityList = new JList<>(entityListModel);
-    private final JScrollPane entityListScrollPane = new JScrollPane(entityList);
-    private final JSplitPane entitySplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, entityListScrollPane, new JPanel());
+    private final DefaultListModel<String>[] entityListModel = new DefaultListModel[3];
+    private final JList<String> entityList;
+    private final JScrollPane entityListScrollPane;
+    private final JSplitPane entitySplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
     private final JTextArea previewTextArea = new JTextArea();
     private final JLabel statusLabel = new JLabel("Ready");
     
@@ -67,6 +67,15 @@ public class FGDBuilder {
         menuBar.add(createHelpMenu());
         mainFrame.setJMenuBar(menuBar);
 
+        //Entity splitpane
+        for (int i = 0; i < entityListModel.length; i++)
+            entityListModel[i] = new DefaultListModel<>();
+        entityList = new JList<>(entityListModel[0]);
+        entityListScrollPane = new JScrollPane(entityList);
+        entitySplitPane.setLeftComponent(entityListScrollPane);
+        entitySplitPane.setRightComponent(new JPanel());
+        entitySplitPane.setResizeWeight(.5);
+        
         //Tabs
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Base Classes", entitySplitPane);
@@ -76,11 +85,8 @@ public class FGDBuilder {
         JScrollPane fgdPreviewScrollPane = new JScrollPane(previewTextArea);
         previewTextArea.setEditable(false);
         tabbedPane.addTab("Preview", fgdPreviewScrollPane);
-        tabbedPane.addChangeListener(new TabChangeListener(tabbedPane, entitySplitPane));
+        tabbedPane.addChangeListener(new TabChangeListener(tabbedPane, entitySplitPane, entityListModel, entityList));
         mainFrame.add(tabbedPane, BorderLayout.CENTER);
-        
-        //Entity splitpane
-        entitySplitPane.setResizeWeight(.5);
         
         //Status strip
         JPanel statusPanel = new JPanel();

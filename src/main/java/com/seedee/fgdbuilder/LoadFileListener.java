@@ -24,10 +24,10 @@ public class LoadFileListener implements ActionListener {
 
     private String appTitle;
     private File selectedFile;
-    private DefaultListModel<String> entityListModel;
+    private DefaultListModel<String>[] entityListModel;
     private JLabel statusLabel;
     
-    public LoadFileListener(String title, File file, DefaultListModel<String> listModel, JLabel label) {
+    public LoadFileListener(String title, File file, DefaultListModel<String>[] listModel, JLabel label) {
         appTitle = title;
         selectedFile = file;
         entityListModel = listModel;
@@ -64,13 +64,13 @@ public class LoadFileListener implements ActionListener {
             
             while ((line = reader.readLine()) != null) {
                 if (line.trim().startsWith("@BaseClass")) {
-                    entityListModel.addElement(line);
+                    entityListModel[0].addElement(line);
                 }
                 if (line.trim().startsWith("@SolidClass")) {
-                    entityListModel.addElement(line);
+                    entityListModel[1].addElement(line);
                 }
                 if (line.trim().startsWith("@PointClass")) {
-                    entityListModel.addElement(line);
+                    entityListModel[2].addElement(line);
                 }
             }
             
