@@ -10,6 +10,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
@@ -85,7 +87,7 @@ public class FGDBuilder {
         JScrollPane fgdPreviewScrollPane = new JScrollPane(previewTextArea);
         previewTextArea.setEditable(false);
         tabbedPane.addTab("Preview", fgdPreviewScrollPane);
-        tabbedPane.addChangeListener(new TabChangeListener(tabbedPane, entitySplitPane, entityListModel, entityList));
+        tabbedPane.addChangeListener(new TabChangeListener(entitySplitPane, entityListModel, entityList));
         mainFrame.add(tabbedPane, BorderLayout.CENTER);
         
         //Status strip
@@ -103,10 +105,17 @@ public class FGDBuilder {
     private JMenu createFileMenu() {
         JMenu fileMenu = new JMenu("File");
         fileMenu.setMnemonic(KeyEvent.VK_F);
-        fileMenu.add(createMenuItem("Load", KeyEvent.VK_L, new LoadFileListener(appTitle, selectedFile, entityListModel, statusLabel)));
-        fileMenu.add(createMenuItem("Reload", KeyEvent.VK_R, (ActionEvent e) -> System.out.println("Reloading")));
-        fileMenu.add(createMenuItem("Close", KeyEvent.VK_C, (ActionEvent e) -> System.out.println("Closing")));
-        fileMenu.add(createMenuItem("Exit", KeyEvent.VK_E, (ActionEvent e) -> System.exit(0)));
+        
+        JMenuItem reloadMenuItem = createMenuItem("Reload", KeyEvent.VK_R, null, false);
+        JMenuItem closeMenuItem = createMenuItem("Close", KeyEvent.VK_C, null, false);
+        
+        LoadFileListener loadFileListener = new LoadFileListener(appTitle, new JMenuItem[]{reloadMenuItem, closeMenuItem}, selectedFile, entityListModel, previewTextArea, statusLabel);
+        reloadMenuItem.addActionListener(loadFileListener);
+        
+        fileMenu.add(createMenuItem("Load", KeyEvent.VK_L, loadFileListener, true));
+        fileMenu.add(reloadMenuItem);
+        fileMenu.add(reloadMenuItem);
+        fileMenu.add(createMenuItem("Exit", KeyEvent.VK_E, (ActionEvent e) -> System.exit(0), true));
         
         return fileMenu;
     }
@@ -114,15 +123,16 @@ public class FGDBuilder {
     private JMenu createHelpMenu() {
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
-        helpMenu.add(createMenuItem("About " + appTitle, KeyEvent.VK_A, (ActionEvent e) -> System.out.println("Abouting")));
+        helpMenu.add(createMenuItem("About " + appTitle, KeyEvent.VK_A, (ActionEvent e) -> System.out.println("Abouting"), true));
         
         return helpMenu;
     }
     
-    private JMenuItem createMenuItem(String name, int mnemonic, ActionListener listener) {
+    private JMenuItem createMenuItem(String name, int mnemonic, ActionListener listener, boolean enabled) {
         JMenuItem menuItem = new JMenuItem(name);
         menuItem.setMnemonic(mnemonic);
         menuItem.addActionListener(listener);
+        menuItem.setEnabled(enabled);
         
         return menuItem;
     }
