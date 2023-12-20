@@ -17,13 +17,11 @@ import javax.swing.event.ChangeListener;
  */
 public class TabChangeListener implements ChangeListener {
     
-    private JTabbedPane tabbedPane;
     private Component swappableComponent;
     private DefaultListModel<String>[] entityListModel;
     private JList<String> entityList;
     
-    public TabChangeListener(JTabbedPane tabs, Component component, DefaultListModel<String>[] listModel, JList<String> list) {
-        tabbedPane = tabs;
+    public TabChangeListener(Component component, DefaultListModel<String>[] listModel, JList<String> list) {
         swappableComponent = component;
         entityListModel = listModel;
         entityList = list;
@@ -31,32 +29,32 @@ public class TabChangeListener implements ChangeListener {
     
 @Override
     public void stateChanged(ChangeEvent e) {
-        int newTabIndex = tabbedPane.getSelectedIndex();
+        if (!(e.getSource() instanceof JTabbedPane)) {
+            return;
+        }
+        JTabbedPane source = (JTabbedPane) e.getSource();
+        
+        int newTabIndex = source.getSelectedIndex();
         
         switch (newTabIndex) {
-            case 0:
-                entityList.setModel(entityListModel[0]);
-                break;
-            case 1:
-                entityList.setModel(entityListModel[1]);
-                break;
-            case 2:
-                entityList.setModel(entityListModel[2]);
-                break;
-            default:
-                return;
+            case 0 -> entityList.setModel(entityListModel[0]);
+            case 1 -> entityList.setModel(entityListModel[1]);
+            case 2 -> entityList.setModel(entityListModel[2]);
+            default -> {
+                    return;
+            }
         }
         int previousTabIndex = 0;
         
-        for (int i = 0; i < tabbedPane.getTabCount(); i++) {
-            if (tabbedPane.getComponentAt(i) == swappableComponent)
+        for (int i = 0; i < source.getTabCount(); i++) {
+            if (source.getComponentAt(i) == swappableComponent)
                 previousTabIndex = i;
         }
         if (previousTabIndex != newTabIndex) {
-            tabbedPane.setComponentAt(previousTabIndex, null);
-            tabbedPane.setComponentAt(newTabIndex, swappableComponent);
-            tabbedPane.revalidate();
-            tabbedPane.repaint();
+            source.setComponentAt(previousTabIndex, null);
+            source.setComponentAt(newTabIndex, swappableComponent);
+            source.revalidate();
+            source.repaint();
         }
     }
 }
