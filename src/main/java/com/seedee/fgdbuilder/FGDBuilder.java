@@ -6,12 +6,9 @@
 package com.seedee.fgdbuilder;
 
 import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import java.io.File;
 import java.util.ArrayList;
-import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
@@ -29,6 +26,7 @@ import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.event.ChangeListener;
 
 /**
  *
@@ -36,20 +34,27 @@ import javax.swing.UIManager;
  */
 public class FGDBuilder {
 
-    private final String appTitle = "Half-Life FGD Builder";
-    private File selectedFile;
-    private final DefaultListModel<String>[] entityListModel = new DefaultListModel[3];
-    private final JList<String> entityList;
-    private final JScrollPane entityListScrollPane;
-    private final JSplitPane entitySplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+    private static final String appTitle = "Half-Life FGD Builder";
+    private JTabbedPane tabbedPane = new JTabbedPane();
+    private final DefaultListModel<Entity> entityListModel = new DefaultListModel();
+    private JList<Entity> entityList = new JList<>(entityListModel);
+    private final JSplitPane entitySplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(entityList), new JPanel());
     private final JTextArea previewTextArea = new JTextArea();
     private final JLabel statusLabel = new JLabel("Ready");
+    
+    private JMenuItem loadMenuItem;
+    private JMenuItem reloadMenuItem;
+    private JMenuItem closeMenuItem;
+    private JMenuItem exitMenuItem;
+    private JMenuItem aboutMenuItem;
     
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-                new FGDBuilder();
+                FGDBuilder fgdBuilder = new FGDBuilder();
+                EntityManager entityManager = new EntityManager();
+                new EventHandler(fgdBuilder, entityManager);
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -68,18 +73,8 @@ public class FGDBuilder {
         menuBar.add(createFileMenu());
         menuBar.add(createHelpMenu());
         mainFrame.setJMenuBar(menuBar);
-
-        //Entity splitpane
-        for (int i = 0; i < entityListModel.length; i++)
-            entityListModel[i] = new DefaultListModel<>();
-        entityList = new JList<>(entityListModel[0]);
-        entityListScrollPane = new JScrollPane(entityList);
-        entitySplitPane.setLeftComponent(entityListScrollPane);
-        entitySplitPane.setRightComponent(new JPanel());
-        entitySplitPane.setResizeWeight(.5);
-        
+                
         //Tabs
-        JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Base Classes", entitySplitPane);
         tabbedPane.addTab("Solid Classes", null); //Dummy components to be swapped with entitySplitPane
         tabbedPane.addTab("Point Classes", null);
@@ -87,8 +82,11 @@ public class FGDBuilder {
         JScrollPane fgdPreviewScrollPane = new JScrollPane(previewTextArea);
         previewTextArea.setEditable(false);
         tabbedPane.addTab("Preview", fgdPreviewScrollPane);
-        tabbedPane.addChangeListener(new TabChangeListener(entitySplitPane, entityListModel, entityList));
+        
         mainFrame.add(tabbedPane, BorderLayout.CENTER);
+        
+        //Entity splitpane
+        entitySplitPane.setResizeWeight(.1);
         
         //Status strip
         JPanel statusPanel = new JPanel();
@@ -97,25 +95,83 @@ public class FGDBuilder {
         statusLabel.setHorizontalAlignment(SwingConstants.LEFT);
         statusPanel.add(statusLabel);
         mainFrame.add(statusPanel, BorderLayout.SOUTH);
-        
+
         mainFrame.setLocationRelativeTo(null);
+        mainFrame.validate();
+        mainFrame.repaint();
         mainFrame.setVisible(true);
+    }
+    
+    public void addLoadListener(ActionListener listener) {
+        loadMenuItem.addActionListener(listener);
+    }
+    
+    public void addReloadListener(ActionListener listener) {
+        reloadMenuItem.addActionListener(listener);
+    }
+    
+    public void addCloseListener(ActionListener listener) {
+        closeMenuItem.addActionListener(listener);
+    }
+    
+    public void addExitListener(ActionListener listener) {
+        exitMenuItem.addActionListener(listener);
+    }
+
+    public void enableFileMenuItems(boolean enabled) {
+        reloadMenuItem.setEnabled(enabled);
+        closeMenuItem.setEnabled(enabled);
+    }
+    
+    public void addAboutListener(ActionListener listener) {
+        aboutMenuItem.addActionListener(listener);
+    }
+    
+    public void addTabListener(ChangeListener listener) {
+        tabbedPane.addChangeListener(listener);
+    }
+    
+    public int getCurrentTab() {
+        return tabbedPane.getSelectedIndex();
+    }
+    
+    public JSplitPane getEntitySplitPane() {
+        return entitySplitPane;
+    }
+    
+    public void updateEntityListModel(ArrayList<Entity> list) {
+        if (list == null)
+            return;
+        entityListModel.clear();
+        
+        for (Entity e : list) {
+            entityListModel.addElement(e);
+        }
+    }
+    
+    public void clearEntityListModel() {
+        entityListModel.clear();
+    }
+    
+    public void setStatusLabel(String text) {
+        statusLabel.setText(text);
     }
     
     private JMenu createFileMenu() {
         JMenu fileMenu = new JMenu("File");
-        fileMenu.setMnemonic(KeyEvent.VK_F);
+        fileMenu.setMnemonic(KeyEvent.VK_F); //Check convention for mnemonics later
         
-        JMenuItem reloadMenuItem = createMenuItem("Reload", KeyEvent.VK_R, null, false);
-        JMenuItem closeMenuItem = createMenuItem("Close", KeyEvent.VK_C, null, false);
+        loadMenuItem = createMenuItem("Load", KeyEvent.VK_L, true);
+        fileMenu.add(loadMenuItem);
         
-        LoadFileListener loadFileListener = new LoadFileListener(appTitle, new JMenuItem[]{reloadMenuItem, closeMenuItem}, selectedFile, entityListModel, previewTextArea, statusLabel);
-        reloadMenuItem.addActionListener(loadFileListener);
-        
-        fileMenu.add(createMenuItem("Load", KeyEvent.VK_L, loadFileListener, true));
+        reloadMenuItem = createMenuItem("Reload", KeyEvent.VK_R, false);
         fileMenu.add(reloadMenuItem);
-        fileMenu.add(reloadMenuItem);
-        fileMenu.add(createMenuItem("Exit", KeyEvent.VK_E, (ActionEvent e) -> System.exit(0), true));
+        
+        closeMenuItem = createMenuItem("Close", KeyEvent.VK_C, false);
+        fileMenu.add(closeMenuItem);
+        
+        exitMenuItem = createMenuItem("Exit", KeyEvent.VK_E, true);
+        fileMenu.add(exitMenuItem);
         
         return fileMenu;
     }
@@ -123,22 +179,18 @@ public class FGDBuilder {
     private JMenu createHelpMenu() {
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
-        helpMenu.add(createMenuItem("About " + appTitle, KeyEvent.VK_A, (ActionEvent e) -> System.out.println("Abouting"), true));
+        
+        aboutMenuItem = createMenuItem("About " + appTitle, KeyEvent.VK_E, true);
+        helpMenu.add(aboutMenuItem);
         
         return helpMenu;
     }
     
-    private JMenuItem createMenuItem(String name, int mnemonic, ActionListener listener, boolean enabled) {
+    private JMenuItem createMenuItem(String name, int mnemonic, boolean enabled) {
         JMenuItem menuItem = new JMenuItem(name);
         menuItem.setMnemonic(mnemonic);
-        menuItem.addActionListener(listener);
         menuItem.setEnabled(enabled);
         
         return menuItem;
     }
-    
-    /*@Override
-    public void actionPerformed(ActionEvent e) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }*/
 }

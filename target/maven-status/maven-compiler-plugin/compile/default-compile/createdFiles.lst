@@ -1,2 +1,4 @@
+com\seedee\fgdbuilder\Entity.class
+com\seedee\fgdbuilder\EntityType.class
 com\seedee\fgdbuilder\FGDBuilder.class
-com\seedee\fgdbuilder\MainFrame.class
+com\seedee\fgdbuilder\Entity$Builder.class

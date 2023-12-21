@@ -9,26 +9,27 @@ package com.seedee.fgdbuilder;
  * @author cdani
  */
 public class Entity {
-    private EntityType entClass;
-    private String name;
-    private String description;
-    private String inherits;
-    private int[][] size;
-    private short[] color;
-    private String sprite;
-    private String decal;
-    private String studio;
-    
+
+    private EntityType entClass; // @.*?Class
+    private String name; // =\s*([^:|\n\]]+)
+    private String description; // :(.*?)[\[\n]
+    private String inherits; // (base)\(([^)]*)\)
+    private int[][] size; // (size)\(([^)]*)\)
+    private short[] color; // (color)\(([^)]*)\)
+    private String sprite; // (iconsprite)\(([^)]*)\)
+    private String decal; // (decal)\(([^)]*)\)
+    private String studio; // (studio)\(([^)]*)\)
+
     private Entity(Builder entityBuilder) {
-        entClass = entityBuilder.entClass;
-        name = entityBuilder.name;
-        description = entityBuilder.description;
-        inherits = entityBuilder.inherits;
-        size = entityBuilder.size;
-        color = entityBuilder.color;
-        sprite = entityBuilder.sprite;
-        decal = entityBuilder.decal;
-        studio = entityBuilder.studio;
+        this.entClass = entityBuilder.entClass;
+        this.name = entityBuilder.name;
+        this.description = entityBuilder.description;
+        this.inherits = entityBuilder.inherits;
+        this.size = entityBuilder.size;
+        this.color = entityBuilder.color;
+        this.sprite = entityBuilder.sprite;
+        this.decal = entityBuilder.decal;
+        this.studio = entityBuilder.studio;
     }
     
     public void printData() {
@@ -43,6 +44,11 @@ public class Entity {
         System.out.println("Studio: " + studio);
         System.out.println();
         
+    }
+    
+    @Override
+    public String toString() {
+        return name;
     }
     
     public static class Builder {
@@ -60,42 +66,42 @@ public class Entity {
         private String studio;
         
         public Builder(EntityType entityClass, String entityName) {
-            entClass = entityClass;
-            name = entityName;
+            this.entClass = entityClass;
+            this.name = entityName;
         }
 
         public Builder setInherits(String entityInherits) {
-            inherits = entityInherits;
+            this.inherits = entityInherits;
             return this;
         }
 
         public Builder setSize(int[][] entitySize) {
-            size = entitySize;
+            this.size = entitySize;
             return this;
         }
 
         public Builder setColor(short[] entityColor) {
-            color = entityColor;
+            this.color = entityColor;
             return this;
         }
 
         public Builder setSprite(String entitySprite) {
-            sprite = entitySprite;
+            this.sprite = entitySprite;
             return this;
         }
 
         public Builder setDecal(String entityDecal) {
-            decal = entityDecal;
+            this.decal = entityDecal;
             return this;
         }
 
         public Builder setStudio(String entityStudio) {
-            studio = entityStudio;
+            this.studio = entityStudio;
             return this;
         }
 
         public Builder setDescription(String entityDescription) {
-            description = entityDescription;
+            this.description = entityDescription;
             return this;
         }
 
