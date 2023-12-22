@@ -35,18 +35,18 @@ import javax.swing.event.ChangeListener;
 public class FGDBuilder {
 
     private static final String appTitle = "Half-Life FGD Builder";
-    private JTabbedPane tabbedPane = new JTabbedPane();
-    private final DefaultListModel<Entity> entityListModel = new DefaultListModel();
-    private JList<Entity> entityList = new JList<>(entityListModel);
-    private final JSplitPane entitySplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(entityList), new JPanel());
-    private final JTextArea previewTextArea = new JTextArea();
-    private final JLabel statusLabel = new JLabel("Ready");
-    
     private JMenuItem loadMenuItem;
     private JMenuItem reloadMenuItem;
     private JMenuItem closeMenuItem;
     private JMenuItem exitMenuItem;
     private JMenuItem aboutMenuItem;
+    private JTabbedPane tabbedPane = new JTabbedPane();
+    private final DefaultListModel<Entity> entityListModel = new DefaultListModel();
+    private JList<Entity> entityList = new JList<>(entityListModel);
+    private JPanel entityPanel = new JPanel();
+    private final JSplitPane entitySplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(entityList), entityPanel);
+    private final JTextArea previewTextArea = new JTextArea();
+    private final JLabel statusLabel = new JLabel("Ready");
     
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -87,6 +87,9 @@ public class FGDBuilder {
         
         //Entity splitpane
         entitySplitPane.setResizeWeight(.1);
+        
+        //Entity panel
+        entityPanel.setLayout(new BoxLayout(entityPanel, BoxLayout.Y_AXIS));
         
         //Status strip
         JPanel statusPanel = new JPanel();
