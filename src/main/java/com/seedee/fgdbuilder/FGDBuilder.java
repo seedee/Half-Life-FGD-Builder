@@ -34,16 +34,16 @@ import javax.swing.event.ChangeListener;
  */
 public class FGDBuilder {
 
-    private static final String appTitle = "Half-Life FGD Builder";
+    private static final String APP_TITLE = "Half-Life FGD Builder";
     private JMenuItem loadMenuItem;
     private JMenuItem reloadMenuItem;
     private JMenuItem closeMenuItem;
     private JMenuItem exitMenuItem;
     private JMenuItem aboutMenuItem;
-    private JTabbedPane tabbedPane = new JTabbedPane();
+    private final JTabbedPane tabbedPane = new JTabbedPane();
     private final DefaultListModel<Entity> entityListModel = new DefaultListModel();
-    private JList<Entity> entityList = new JList<>(entityListModel);
-    private JPanel entityPanel = new JPanel();
+    private final JList<Entity> entityList = new JList<>(entityListModel);
+    private final JPanel entityPanel = new JPanel();
     private final JSplitPane entitySplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(entityList), entityPanel);
     private final JTextArea previewTextArea = new JTextArea();
     private final JLabel statusLabel = new JLabel("Ready");
@@ -63,7 +63,7 @@ public class FGDBuilder {
     }
 
     public FGDBuilder() {
-        JFrame mainFrame = new JFrame(appTitle);
+        JFrame mainFrame = new JFrame(APP_TITLE);
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mainFrame.setSize(800,600);
         mainFrame.setLayout(new BorderLayout());
@@ -147,8 +147,8 @@ public class FGDBuilder {
             return;
         entityListModel.clear();
         
-        for (Entity e : list) {
-            entityListModel.addElement(e);
+        for (Entity entity : list) {
+            entityListModel.addElement(entity);
         }
     }
     
@@ -183,7 +183,7 @@ public class FGDBuilder {
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
         
-        aboutMenuItem = createMenuItem("About " + appTitle, KeyEvent.VK_E, true);
+        aboutMenuItem = createMenuItem("About " + APP_TITLE, KeyEvent.VK_E, true);
         helpMenu.add(aboutMenuItem);
         
         return helpMenu;
