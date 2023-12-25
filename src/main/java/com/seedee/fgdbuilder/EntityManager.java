@@ -24,7 +24,7 @@ public class EntityManager {
             entityListMap.put(entClass, new ArrayList<>());
         
         fgdPatterns = new Pattern[] {
-            Pattern.compile("(@.*?Class)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("(^@.*?Class)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("=\\s*([^:\\n\\[\\]]+)", Pattern.CASE_INSENSITIVE),
             Pattern.compile(":(.*?)[\\[\\n]", Pattern.CASE_INSENSITIVE),
             Pattern.compile("base\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE),
