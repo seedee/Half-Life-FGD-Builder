@@ -9,7 +9,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.regex.Matcher;
 import javax.swing.JFileChooser;
 import javax.swing.JMenuItem;
@@ -27,26 +26,24 @@ public class EventHandler {
     
     private FGDBuilder fgdBuilder;
     private EntityManager entityManager;
-    private static final String extension = "fgd";
-    private static final String dotExtension = ".fgd";
+    private static final String FILE_EXTENSION = "fgd";
     
     public EventHandler(FGDBuilder fgdBuilder, EntityManager entityManager) {
         this.fgdBuilder = fgdBuilder;
         this.entityManager = entityManager;
         
         fgdBuilder.addLoadListener((ActionEvent e) -> {
-            if (!(e.getSource() instanceof JMenuItem)) {
+            if (!(e.getSource() instanceof JMenuItem))
                 return;
-            }
             try {
-                FileNameExtensionFilter filter = new FileNameExtensionFilter("Forge Game Data (*" + dotExtension + ")", extension);
+                FileNameExtensionFilter filter = new FileNameExtensionFilter("Forge Game Data (*." + FILE_EXTENSION + ")", FILE_EXTENSION);
                 JFileChooser fileChooser = new JFileChooser();
                 fileChooser.setDialogTitle("Load");
                 fileChooser.setFileFilter(filter);
                 fileChooser.setCurrentDirectory(new File("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Half-Life\\cstrike"));
 
                 if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                    if (!fileChooser.getSelectedFile().getName().endsWith(dotExtension)) {
+                    if (!fileChooser.getSelectedFile().getName().endsWith("." + FILE_EXTENSION)) {
                         showFileError();
                         return;
                     }
@@ -60,11 +57,10 @@ public class EventHandler {
         });
         
         fgdBuilder.addReloadListener((ActionEvent e) -> {
-            if (!(e.getSource() instanceof JMenuItem)) {
+            if (!(e.getSource() instanceof JMenuItem))
                 return;
-            }
             if (entityManager.getFgdFile() != null) {
-                if (entityManager.getFgdFile().getName().endsWith(dotExtension))
+                if (entityManager.getFgdFile().getName().endsWith("." + FILE_EXTENSION))
                     parseFgd(true);
                 else {
                     showFileError();
@@ -73,9 +69,8 @@ public class EventHandler {
         });
         
         fgdBuilder.addCloseListener((ActionEvent e) -> {
-            if (!(e.getSource() instanceof JMenuItem)) {
+            if (!(e.getSource() instanceof JMenuItem))
                 return;
-            }
             entityManager.clearEntityList();
             fgdBuilder.clearEntityListModel();
             entityManager.setFgdFile(null);
@@ -84,27 +79,24 @@ public class EventHandler {
         });
         
         fgdBuilder.addExitListener((ActionEvent e) -> {
+            if (!(e.getSource() instanceof JMenuItem))
+                return;
             System.exit(0);
         });
         
         fgdBuilder.addAboutListener((ActionEvent e) -> {
-        
+            if (!(e.getSource() instanceof JMenuItem))
+                return;
+            System.out.println("About");
         });
         
         fgdBuilder.addTabListener((ChangeEvent e) -> {
-            if (!(e.getSource() instanceof JTabbedPane)) {
-                    return;
-            }
+            if (!(e.getSource() instanceof JTabbedPane))
+                return;
             JTabbedPane tabbedPane = (JTabbedPane) e.getSource();
             int newTabIndex = tabbedPane.getSelectedIndex();
 
-            switch (newTabIndex) {
-                case 0 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.BASECLASS));
-                case 1 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.SOLIDCLASS));
-                case 2 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.POINTCLASS));
-                default -> { return; }
-            }
-            
+            if (!refreshEntityTab(newTabIndex)) return;
             JSplitPane entitySplitPane = fgdBuilder.getEntitySplitPane();
             int previousTabIndex = 0;
             
@@ -122,8 +114,8 @@ public class EventHandler {
     }
     
     private void showFileError() {
-        fgdBuilder.setStatusLabel("File must be a Forge Game Data (*" + dotExtension + ") file");
-        JOptionPane.showMessageDialog(null, "File must be a Forge Game Data (*" + dotExtension + ") file", "Warning", JOptionPane.WARNING_MESSAGE);
+        fgdBuilder.setStatusLabel("File must be a Forge Game Data (*." + FILE_EXTENSION + ") file");
+        JOptionPane.showMessageDialog(null, "File must be a Forge Game Data (*." + FILE_EXTENSION + ") file", "Warning", JOptionPane.WARNING_MESSAGE);
     }
     
     private void parseFgd(boolean reloading) {
@@ -133,32 +125,57 @@ public class EventHandler {
         try (BufferedReader reader = new BufferedReader(new FileReader(entityManager.getFgdFile()))) {
             String line;
             StringBuilder stringBuilder = new StringBuilder();
-            
+            Matcher entClassMatcher = entityManager.getFgdPattern(0).matcher("");
+            Matcher nameMatcher = entityManager.getFgdPattern(1).matcher("");
+
             while ((line = reader.readLine()) != null) {
-                String trimmedLine = line.trim();
+                entClassMatcher.reset(line.trim());
+                nameMatcher.reset(line.trim());
                 
-                if (trimmedLine.startsWith("@")) {
-                    /*if (trimmedLine.endsWith("[]")) {*/
-                        stringBuilder.append(trimmedLine + "\n");
-                        createEntity(stringBuilder);
+                if (!entClassMatcher.find() || !nameMatcher.find())
+                    continue;
+                if (line.trim().indexOf('[') != -1 && line.trim().indexOf(']') != -1) {
+                    createEntity(line.trim(), null);
+                    continue;
+                }
+                String bodyLine;
+                boolean startOfBody = false;
+                int syntaxIndex = 0;
+                reader.mark(100);
+                
+                while ((bodyLine = reader.readLine()) != null) {
+                    entClassMatcher.reset(bodyLine.trim());
+                    
+                    if (entClassMatcher.find()) {
                         stringBuilder.setLength(0);
-                    /*}
-                    else {
-                        stringBuilder.append(trimmedLine);
-                        while ((line = reader.readLine()) != null) {
-                            stringBuilder.append(trimmedLine);
-                            if (trimmedLine.contains("]"))
-                                break;
+                        reader.reset();
+                        break;
+                    }
+                    if (bodyLine.trim().indexOf('[') != -1 && !startOfBody)
+                        startOfBody = true;
+                    if (startOfBody) {
+                        if (!bodyLine.trim().isEmpty())
+                            stringBuilder.append(bodyLine.trim()).append("\n");
+                        
+                        for (int i = 0; i < bodyLine.trim().length(); i++) {
+                            switch (bodyLine.trim().charAt(i)) {
+                                case '[' -> syntaxIndex++;
+                                case ']' -> syntaxIndex--;
+                            }
                         }
-                    }*/
+                        if (syntaxIndex == 0) {
+                            if (stringBuilder.charAt(stringBuilder.length() - 1) == '\n')
+                                stringBuilder.setLength(stringBuilder.length() - 1);
+                            createEntity(line.trim(), stringBuilder);
+                            stringBuilder.setLength(0);
+                            break;
+                        }
+                    }
                 }
             }
-            switch (fgdBuilder.getCurrentTab()) {
-                case 0 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.BASECLASS));
-                case 1 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.SOLIDCLASS));
-                case 2 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.POINTCLASS));
-                default -> { return; }
-            }
+            System.out.println("Finished loading");
+            
+            if (!refreshEntityTab(fgdBuilder.getCurrentTab())) return;
             fgdBuilder.enableFileMenuItems(true);
             
             if (reloading)
@@ -178,8 +195,7 @@ public class EventHandler {
         }
     }
     
-    private void createEntity(StringBuilder stringBuilder) {
-        String entityString = stringBuilder.substring(0, stringBuilder.indexOf("\n"));
+    private void createEntity(String entityString, StringBuilder entityBody) {
         Matcher entClassMatcher = entityManager.getFgdPattern(0).matcher(entityString);
         Matcher nameMatcher = entityManager.getFgdPattern(1).matcher(entityString);
         
@@ -209,9 +225,7 @@ public class EventHandler {
         if (sizeMatcher.find()) {
             try {
                 int[][] size = new int[2][3];
-                String corners[] = new String[3];
-                
-                corners = sizeMatcher.group(1).split(",\\s*");
+                String corners[] = sizeMatcher.group(1).split(",\\s*");
 
                 for (int i = 0; i < corners.length; i++) {
                     String[] xyz = corners[i].split("\\s+");
@@ -248,19 +262,31 @@ public class EventHandler {
             entityBuilder.setSprite(spriteMatcher.group(1).replace("\"", "").trim());
         
         Matcher decalMatcher = entityManager.getFgdPattern(7).matcher(entityString);
-        boolean decal = false;
         
         if (decalMatcher.find())
             entityBuilder.setDecal(true);
         
         Matcher studioMatcher = entityManager.getFgdPattern(8).matcher(entityString);
-        String studio = null;
         
         if (studioMatcher.find())
             entityBuilder.setStudio(studioMatcher.group(1).replace("\"", "").trim());
+        
+        if (entityBody != null)
+            entityBuilder.setBody(entityBody.toString());
         
         Entity entity = entityBuilder.build();
         entityManager.addEntity(entity);
         entity.printData();
     }
+    
+    private boolean refreshEntityTab(int tabIndex) {
+        switch (tabIndex) {
+            case 0 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.BASECLASS));
+            case 1 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.SOLIDCLASS));
+            case 2 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.POINTCLASS));
+            default -> { return false; }
+        }
+        return true;
+    }
 }
+
