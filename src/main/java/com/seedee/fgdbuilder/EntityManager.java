@@ -17,22 +17,27 @@ public class EntityManager {
     
     private File fgdFile;
     private final EnumMap<EntityType, ArrayList<Entity>> entityListMap = new EnumMap<>(EntityType.class);
-    private final Pattern[] fgdPatterns;
+    private final Pattern[] entityPatterns;
+    private final Pattern[] entityPropertyPatterns;
     
     public EntityManager() {
         for (EntityType entClass : EntityType.values())
             entityListMap.put(entClass, new ArrayList<>());
         
-        fgdPatterns = new Pattern[] {
+        entityPatterns = new Pattern[] {
             Pattern.compile("(^@.*?Class)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("=\\s*([^:\\n\\[\\]]+)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile(":(.*?)[\\[\\n]", Pattern.CASE_INSENSITIVE),
+            Pattern.compile(":\\s*\"([^\"\\[]*)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("base\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("size\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("color\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("iconsprite\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("size\\(\\s*([-+]?\\d+)\\s+([-+]?\\d+)\\s+([-+]?\\d+)\\s*,\\s*([-+]?\\d+)\\s+([-+]?\\d+)\\s+([-+]?\\d+)\\s*\\)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("color\\(\\s*([-+]?\\d+)\\s+([-+]?\\d+)\\s+([-+]?\\d+)\\s*\\)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("iconsprite\\(\"*([^\"]*)\"*\\)", Pattern.CASE_INSENSITIVE),
             Pattern.compile("decal\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("studio\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("studio\\(\"*([^\"]*)\"*\\)", Pattern.CASE_INSENSITIVE)
+        };
+        
+        entityPropertyPatterns = new Pattern[] {
+            Pattern.compile("(.+)\\((.+)\\)", Pattern.CASE_INSENSITIVE)
         };
     }
     
@@ -58,7 +63,11 @@ public class EntityManager {
         entityList.add(entity);
     }
     
-    public Pattern getFgdPattern(int i) {
-        return fgdPatterns[i];
+    public Pattern getEntityPattern(int i) {
+        return entityPatterns[i];
+    }
+    
+    public Pattern getEntityPropertyPattern(int i) {
+        return entityPropertyPatterns[i];
     }
 }
