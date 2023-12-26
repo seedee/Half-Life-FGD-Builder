@@ -9,6 +9,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.regex.Matcher;
 import javax.swing.JFileChooser;
 import javax.swing.JMenuItem;
@@ -48,7 +51,7 @@ public class EventHandler {
                         return;
                     }
                     entityManager.setFgdFile(fileChooser.getSelectedFile());
-                    parseFgd(false);
+                    parseEntities(false);
                 }
             }
             catch (Exception ex) {
@@ -61,7 +64,7 @@ public class EventHandler {
                 return;
             if (entityManager.getFgdFile() != null) {
                 if (entityManager.getFgdFile().getName().endsWith("." + FILE_EXTENSION))
-                    parseFgd(true);
+                    parseEntities(true);
                 else {
                     showFileError();
                 }
@@ -118,15 +121,15 @@ public class EventHandler {
         JOptionPane.showMessageDialog(null, "File must be a Forge Game Data (*." + FILE_EXTENSION + ") file", "Warning", JOptionPane.WARNING_MESSAGE);
     }
     
-    private void parseFgd(boolean reloading) {
+    private void parseEntities(boolean reloading) {
         entityManager.clearEntityList();
         fgdBuilder.clearEntityListModel();
         
         try (BufferedReader reader = new BufferedReader(new FileReader(entityManager.getFgdFile()))) {
             String line;
-            StringBuilder stringBuilder = new StringBuilder();
-            Matcher entClassMatcher = entityManager.getFgdPattern(0).matcher("");
-            Matcher nameMatcher = entityManager.getFgdPattern(1).matcher("");
+            StringBuilder entityProperties = new StringBuilder();
+            Matcher entClassMatcher = entityManager.getEntityPattern(0).matcher("");
+            Matcher nameMatcher = entityManager.getEntityPattern(1).matcher("");
 
             while ((line = reader.readLine()) != null) {
                 entClassMatcher.reset(line.trim());
@@ -138,43 +141,48 @@ public class EventHandler {
                     createEntity(line.trim(), null);
                     continue;
                 }
-                String bodyLine;
-                boolean startOfBody = false;
+                boolean startOfProperties = false;
                 int syntaxIndex = 0;
                 reader.mark(100);
                 
-                while ((bodyLine = reader.readLine()) != null) {
-                    entClassMatcher.reset(bodyLine.trim());
+                while (true) {
+                    String propertyLine = reader.readLine();
                     
-                    if (entClassMatcher.find()) {
-                        stringBuilder.setLength(0);
+                    if (propertyLine == null) { //If EOF before properties block
+                        createEntity(line.trim(), null);
+                        entityProperties.setLength(0);
                         reader.reset();
                         break;
                     }
-                    if (bodyLine.trim().indexOf('[') != -1 && !startOfBody)
-                        startOfBody = true;
-                    if (startOfBody) {
-                        if (!bodyLine.trim().isEmpty())
-                            stringBuilder.append(bodyLine.trim()).append("\n");
-                        
-                        for (int i = 0; i < bodyLine.trim().length(); i++) {
-                            switch (bodyLine.trim().charAt(i)) {
+                    entClassMatcher.reset(propertyLine.trim());
+                    
+                    if (entClassMatcher.find()) { //If new entity found before properties block
+                        createEntity(line.trim(), null);
+                        entityProperties.setLength(0);
+                        reader.reset();
+                        break;
+                    }
+                    if (propertyLine.trim().indexOf('[') != -1 && !startOfProperties)
+                        startOfProperties = true;
+                    if (startOfProperties) {
+                        if (!propertyLine.trim().isEmpty() && !propertyLine.trim().startsWith("//"))
+                            entityProperties.append(propertyLine.trim()).append("\n");
+                        for (int i = 0; i < propertyLine.trim().length(); i++) {
+                            switch (propertyLine.trim().charAt(i)) {
                                 case '[' -> syntaxIndex++;
                                 case ']' -> syntaxIndex--;
                             }
                         }
                         if (syntaxIndex == 0) {
-                            if (stringBuilder.charAt(stringBuilder.length() - 1) == '\n')
-                                stringBuilder.setLength(stringBuilder.length() - 1);
-                            createEntity(line.trim(), stringBuilder);
-                            stringBuilder.setLength(0);
+                            if (entityProperties.charAt(entityProperties.length() - 1) == '\n')
+                                entityProperties.setLength(entityProperties.length() - 1);
+                            createEntity(line.trim(), parseEntityProperties(entityProperties));
+                            entityProperties.setLength(0);
                             break;
                         }
                     }
                 }
             }
-            System.out.println("Finished loading");
-            
             if (!refreshEntityTab(fgdBuilder.getCurrentTab())) return;
             fgdBuilder.enableFileMenuItems(true);
             
@@ -195,9 +203,100 @@ public class EventHandler {
         }
     }
     
-    private void createEntity(String entityString, StringBuilder entityBody) {
-        Matcher entClassMatcher = entityManager.getFgdPattern(0).matcher(entityString);
-        Matcher nameMatcher = entityManager.getFgdPattern(1).matcher(entityString);
+    private LinkedHashMap<String[], ArrayList<String>> parseEntityProperties(StringBuilder entityProperties) {
+        if (entityProperties.toString().trim().replace("\n", "").equals("[]"))
+            return null;
+        entityProperties.delete(0, entityProperties.indexOf("\n") + 1);
+        entityProperties.delete(entityProperties.lastIndexOf("\n"), entityProperties.length());
+        LinkedHashMap<String[], ArrayList<String>> entityPropertyMap = new LinkedHashMap<>();
+        ArrayList<String> propertyLines = new ArrayList<>(Arrays.asList(entityProperties.toString().split("\n")));
+        Matcher keyMatcher = entityManager.getEntityPropertyPattern(0).matcher("");
+        
+        for (int i = 0; i < propertyLines.size(); i++) {
+            String[] propertyParts = propertyLines.get(i).split(":");
+            
+            for (int j = 0; j < propertyParts.length; j++) {
+                propertyParts[j] = propertyParts[j].trim();
+            }
+            if (propertyParts.length > 4) //Invalid property
+                continue;
+            String keyName;
+            String keyType;
+            keyMatcher.reset(propertyParts[0]);
+
+            if (!keyMatcher.find())
+                continue;
+            keyName = keyMatcher.group(1);
+            keyType = keyMatcher.group(2);
+            String lastPart = propertyParts[propertyParts.length - 1];
+            boolean startOfPropertyBody = false;
+            
+            if (lastPart.endsWith("=")) {
+                if (i == propertyLines.size() - 1)
+                    break;
+                propertyParts[propertyParts.length - 1] = lastPart.substring(0, lastPart.length() - 1).trim();
+
+                if (keyName.equalsIgnoreCase("spawnflags") && keyType.equalsIgnoreCase("flags") || keyType.equalsIgnoreCase("choices"))
+                    startOfPropertyBody = true;
+            }
+            String keySmartEditName = null;
+            String keyDefaultValue = null;
+            String keyDescription = null;
+            
+            if (propertyParts.length > 1 && !(keyName.equalsIgnoreCase("spawnflags") && !keyType.equalsIgnoreCase("flags"))) {
+                if (!propertyParts[1].replace("\"", "").isBlank())
+                    keySmartEditName = propertyParts[1].replace("\"", "");
+
+                if (propertyParts.length > 2) {
+                    if (!propertyParts[2].replace("\"", "").isBlank())
+                        keyDefaultValue = propertyParts[2].replace("\"", "");
+
+                    if (propertyParts.length > 3) {
+                        if (!propertyParts[3].replace("\"", "").isBlank())
+                            keyDescription = propertyParts[3].replace("\"", "");
+                    }
+                }
+            }
+            String[] entityProperty = new String[5];
+            entityProperty[0] = keyName;
+            entityProperty[1] = keyType;
+            entityProperty[2] = keySmartEditName;
+            entityProperty[3] = keyDefaultValue;
+            entityProperty[4] = keyDescription;
+            
+            entityPropertyMap.put(entityProperty, null);
+                    
+            if (startOfPropertyBody) {
+                ArrayList<String> entityPropertyBody = new ArrayList<>();
+                boolean foundOpeningTag = false;
+                
+                for (int j = i + 1; j < propertyLines.size(); j++) {
+                    if (propertyLines.get(j).startsWith("[")) {
+                        foundOpeningTag = true;
+                        continue;
+                    }
+                    if (!foundOpeningTag)
+                        continue;
+                    keyMatcher.reset(propertyLines.get(j));
+                    
+                    if (keyMatcher.find()) {
+                        entityPropertyBody = null;
+                        break;
+                    }
+                    if (propertyLines.get(j).equals("]")) {
+                        break;
+                    }
+                    entityPropertyBody.add(propertyLines.get(j));
+                }
+                entityPropertyMap.put(entityProperty, entityPropertyBody);
+            }
+        }
+        return entityPropertyMap;
+    }
+    
+    private void createEntity(String entityString, LinkedHashMap<String[], ArrayList<String>> entityPropertyMap) {
+        Matcher entClassMatcher = entityManager.getEntityPattern(0).matcher(entityString);
+        Matcher nameMatcher = entityManager.getEntityPattern(1).matcher(entityString);
         
         if (!entClassMatcher.find() || !nameMatcher.find())
             return;
@@ -210,45 +309,43 @@ public class EventHandler {
             default -> { return; }
         }
         
-        Matcher descriptionMatcher = entityManager.getFgdPattern(2).matcher(entityString);
+        Matcher descriptionandURLMatcher = entityManager.getEntityPattern(2).matcher(entityString);
+
+        if (descriptionandURLMatcher.find())
+            entityBuilder.setDescription(descriptionandURLMatcher.group(1).trim());
+        if (descriptionandURLMatcher.find())
+            entityBuilder.setURL(descriptionandURLMatcher.group(1).trim());
         
-        if (descriptionMatcher.find())
-            entityBuilder.setDescription(descriptionMatcher.group(1).replace("\"", "").trim());
-        
-        Matcher inheritsMatcher = entityManager.getFgdPattern(3).matcher(entityString);
+        Matcher inheritsMatcher = entityManager.getEntityPattern(3).matcher(entityString);
         
         if (inheritsMatcher.find())
             entityBuilder.setInherits(inheritsMatcher.group(1).split(",\\s*"));
         
-        Matcher sizeMatcher = entityManager.getFgdPattern(4).matcher(entityString);
+        Matcher sizeMatcher = entityManager.getEntityPattern(4).matcher(entityString);
         
         if (sizeMatcher.find()) {
             try {
                 int[][] size = new int[2][3];
-                String corners[] = sizeMatcher.group(1).split(",\\s*");
-
-                for (int i = 0; i < corners.length; i++) {
-                    String[] xyz = corners[i].split("\\s+");
-
-                        for (int j = 0; j < xyz.length; j++)
-                            size[i][j] = Integer.parseInt(xyz[j]);
+                
+                for (int i = 0; i < 2; i++) {
+                    for (int j = 0; j < 3; j++)
+                        size[i][j] = Integer.parseInt(sizeMatcher.group(i * 3 + j + 1));
                 }
                 entityBuilder.setSize(size);
             }
-            catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
+            catch (NumberFormatException e) {
                 e.printStackTrace();
             }
         }
         
-        Matcher colorMatcher = entityManager.getFgdPattern(5).matcher(entityString);
+        Matcher colorMatcher = entityManager.getEntityPattern(5).matcher(entityString);
         
         if (colorMatcher.find()) {
             try {
                 short[] color = new short[3];
-                String[] rgb = colorMatcher.group(1).split("\\s+");
 
-                for (int i = 0; i < rgb.length; i++)
-                    color[i] = Short.parseShort(rgb[i]);
+                for (int i = 0; i < 3; i++)
+                    color[i] = Short.parseShort(colorMatcher.group(i + 1));
                 entityBuilder.setColor(color);
             }
             catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
@@ -256,23 +353,23 @@ public class EventHandler {
             }
         }
         
-        Matcher spriteMatcher = entityManager.getFgdPattern(6).matcher(entityString);
+        Matcher spriteMatcher = entityManager.getEntityPattern(6).matcher(entityString);
         
         if (spriteMatcher.find())
-            entityBuilder.setSprite(spriteMatcher.group(1).replace("\"", "").trim());
+            entityBuilder.setSprite(spriteMatcher.group(1).trim());
         
-        Matcher decalMatcher = entityManager.getFgdPattern(7).matcher(entityString);
+        Matcher decalMatcher = entityManager.getEntityPattern(7).matcher(entityString);
         
         if (decalMatcher.find())
             entityBuilder.setDecal(true);
         
-        Matcher studioMatcher = entityManager.getFgdPattern(8).matcher(entityString);
+        Matcher studioMatcher = entityManager.getEntityPattern(8).matcher(entityString);
         
         if (studioMatcher.find())
-            entityBuilder.setStudio(studioMatcher.group(1).replace("\"", "").trim());
+            entityBuilder.setStudio(studioMatcher.group(1).trim());
         
-        if (entityBody != null)
-            entityBuilder.setBody(entityBody.toString());
+        if (entityPropertyMap != null)
+            entityBuilder.setProperties(entityPropertyMap);
         
         Entity entity = entityBuilder.build();
         entityManager.addEntity(entity);
