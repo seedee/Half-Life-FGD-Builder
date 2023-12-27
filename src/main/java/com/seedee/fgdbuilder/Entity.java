@@ -25,7 +25,7 @@ public class Entity {
     private final String sprite; // iconsprite\("*([^"]*)"*\)
     private final boolean decal; // decal\(([^)]*)\)
     private final String studio; // studio\("*([^"]*)"*\)
-    private final LinkedHashMap<String[], ArrayList<String>> propertyMap;
+    private final LinkedHashMap<String[], ArrayList<String[]>> propertyMap;
     
     private Entity(Builder entityBuilder) {
         this.entClass = entityBuilder.entClass;
@@ -61,7 +61,7 @@ public class Entity {
         System.out.println("Studiomodel: " + studio);
         
         if (propertyMap != null) {
-            for (Map.Entry<String[], ArrayList<String>> entry : propertyMap.entrySet()) {
+            for (Map.Entry<String[], ArrayList<String[]>> entry : propertyMap.entrySet()) {
                 System.out.print("-------- ");
                 String[] property = entry.getKey();
                 
@@ -73,11 +73,11 @@ public class Entity {
                     }
                 }
                 System.out.println();
-                ArrayList<String> propertyBody = entry.getValue();
+                ArrayList<String[]> propertyBody = entry.getValue();
 
                 if (propertyBody != null) {
                     for (int i = 0; i < propertyBody.size(); i++) {
-                        System.out.println("         " + propertyBody.get(i));
+                        System.out.println("         " + Arrays.toString(propertyBody.get(i)));
                     }
                 }
             }
@@ -87,6 +87,11 @@ public class Entity {
     
     public EntityType getEntityClass() {
         return entClass;
+    }
+    
+    @Override
+    public String toString() {
+        return name;
     }
     
     public static class Builder {
@@ -101,7 +106,7 @@ public class Entity {
         private String sprite;
         private boolean decal;
         private String studio;
-        private LinkedHashMap<String[], ArrayList<String>> propertyMap;
+        private LinkedHashMap<String[], ArrayList<String[]>> propertyMap;
         
         public Builder(EntityType entClass, String name) {
             this.entClass = entClass;
@@ -148,7 +153,7 @@ public class Entity {
             return this;
         }
         
-        public Builder setProperties(LinkedHashMap<String[], ArrayList<String>> propertyMap) {
+        public Builder setProperties(LinkedHashMap<String[], ArrayList<String[]>> propertyMap) {
             this.propertyMap = propertyMap;
             return this;
         }
