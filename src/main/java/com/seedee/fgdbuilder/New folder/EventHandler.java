@@ -148,10 +148,8 @@ public class EventHandler {
                 
                 if (!entClassMatcher.find() || !nameMatcher.find())
                     continue;
-                if (line.trim().indexOf('[') != -1 && line.trim().indexOf(']') != -1) {
-                    createEntity(line.trim(), null);
+                if (line.trim().indexOf('[') != -1 && line.trim().indexOf(']') != -1)
                     continue;
-                }
                 boolean startOfProperties = false;
                 int syntaxIndex = 0;
                 reader.mark(100);
