@@ -4,11 +4,14 @@
  */
 package com.seedee.fgdbuilder;
 
+import java.awt.Desktop;
 import java.awt.event.ActionEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -27,9 +30,23 @@ import javax.swing.filechooser.FileNameExtensionFilter;
  */
 public class EventHandler {
     
+    private static final String FILE_EXTENSION = "fgd";
+    private static final URI[] URIS;
     private FGDBuilder fgdBuilder;
     private EntityManager entityManager;
-    private static final String FILE_EXTENSION = "fgd";
+    
+    static {
+        try {
+            URIS = new URI[] {
+                new URI("https://developer.valvesoftware.com/wiki/FGD"),
+                new URI("https://github.com/seedee/Half-Life-FGD-Builder/issues"),
+                new URI("https://github.com/seedee/Half-Life-FGD-Builder/discussions")
+            };
+        }
+        catch (final URISyntaxException e) {
+            throw new RuntimeException("Error initializing URIs", e);
+        }
+    }
     
     public EventHandler(FGDBuilder fgdBuilder, EntityManager entityManager) {
         this.fgdBuilder = fgdBuilder;
@@ -42,6 +59,9 @@ public class EventHandler {
         fgdBuilder.addReloadListener(this::reloadEventHandler);
         fgdBuilder.addCloseListener(this::closeEventHandler);
         fgdBuilder.addExitListener(this::exitEventHandler);
+        fgdBuilder.addVdcListener(this::vdcEventHandler);
+        fgdBuilder.addBugReportListener(this::bugReportEventHandler);
+        fgdBuilder.addFeedbackListener(this::feedbackEventHandler);
         fgdBuilder.addAboutListener(this::aboutEventHandler);
         fgdBuilder.addTabListener(this::tabEventHandler);
     }
@@ -58,6 +78,7 @@ public class EventHandler {
 
             if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
                 if (!fileChooser.getSelectedFile().getName().endsWith("." + FILE_EXTENSION)) {
+                    entityManager.setFgdFile(null);
                     showFileError();
                     return;
                 }
@@ -77,6 +98,7 @@ public class EventHandler {
             if (entityManager.getFgdFile().getName().endsWith("." + FILE_EXTENSION))
                 parseEntities(true);
             else {
+                entityManager.setFgdFile(null);
                 showFileError();
             }
         }
@@ -85,17 +107,53 @@ public class EventHandler {
     private void closeEventHandler(ActionEvent e) {
         if (!(e.getSource() instanceof JMenuItem))
             return;
-        entityManager.clearEntityList();
         fgdBuilder.clearEntityListModel();
-        entityManager.setFgdFile(null);
         fgdBuilder.enableFileMenuItems(false);
-        fgdBuilder.setStatusLabel("Ready");
+        fgdBuilder.setStatusLabel("Closed " + entityManager.getFgdFile());
+        entityManager.setFgdFile(null);
+        entityManager.clearEntityList();
     }
     
     private void exitEventHandler(ActionEvent e) {
         if (!(e.getSource() instanceof JMenuItem))
             return;
         System.exit(0);
+    }
+    
+    private void vdcEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JMenuItem))
+            return;
+         openURL(URIS[0]);
+    }
+    
+    private void bugReportEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JMenuItem))
+            return;
+        openURL(URIS[1]);
+    }
+    
+    private void feedbackEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JMenuItem))
+            return;
+        openURL(URIS[2]);
+    }
+    
+    
+    private void openURL(URI uri) {
+        try {
+            if (!Desktop.isDesktopSupported()) { //Todo: implement linux support
+                fgdBuilder.setStatusLabel("Unable to open URL: Desktop API is not supported on the current platform");
+                return;
+            }
+            if (!Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                fgdBuilder.setStatusLabel("Unable to open URL: Browsing is not supported on this platform");
+                return;
+            }
+            Desktop.getDesktop().browse(uri);
+        }
+        catch (UnsupportedOperationException | IOException e) {
+            e.printStackTrace();
+        }
     }
     
     private void aboutEventHandler(ActionEvent e) {
@@ -330,41 +388,46 @@ public class EventHandler {
         if (!entClassMatcher.find() || !nameMatcher.find())
             return;
         
-        Entity.Builder entityBuilder;
+        Entity entity;
         switch (entClassMatcher.group(1)) {
-            case "@BaseClass" -> entityBuilder = new Entity.Builder(EntityType.BASECLASS, nameMatcher.group(1));
-            case "@SolidClass" -> entityBuilder = new Entity.Builder(EntityType.SOLIDCLASS, nameMatcher.group(1));
-            case "@PointClass" -> entityBuilder = new Entity.Builder(EntityType.POINTCLASS, nameMatcher.group(1));
+            case "@BaseClass" -> entity = new Entity(EntityType.BASECLASS, nameMatcher.group(1));
+            case "@SolidClass" -> entity = new Entity(EntityType.SOLIDCLASS, nameMatcher.group(1));
+            case "@PointClass" -> entity = new Entity(EntityType.POINTCLASS, nameMatcher.group(1));
             default -> { return; }
         }
-        setEntityDescriptionandURL(entityBuilder, entityManager.getEntityPattern(2).matcher(entityString));
-        setEntityInherits(entityBuilder, entityManager.getEntityPattern(3).matcher(entityString));
-        setEntitySize(entityBuilder, entityManager.getEntityPattern(4).matcher(entityString));
-        setEntityColor(entityBuilder, entityManager.getEntityPattern(5).matcher(entityString));
-        setEntitySprite(entityBuilder, entityManager.getEntityPattern(6).matcher(entityString));
-        setEntityDecal(entityBuilder, entityManager.getEntityPattern(7).matcher(entityString));
-        setEntityStudio(entityBuilder, entityManager.getEntityPattern(8).matcher(entityString));
+        setEntityDescriptionandURL(entity, entityManager.getEntityPattern(2).matcher(entityString));
+        setEntityInherits(entity, entityManager.getEntityPattern(3).matcher(entityString));
+        setEntityFlags(entity, entityManager.getEntityPattern(4).matcher(entityString));
+        setEntitySize(entity, entityManager.getEntityPattern(5).matcher(entityString));
+        setEntityColor(entity, entityManager.getEntityPattern(6).matcher(entityString));
+        setEntitySprite(entity, entityManager.getEntityPattern(7).matcher(entityString));
+        setEntityDecal(entity, entityManager.getEntityPattern(8).matcher(entityString));
+        setEntityStudio(entity, entityManager.getEntityPattern(9).matcher(entityString));
         
         if (entityPropertyMap != null)
-            entityBuilder.setProperties(entityPropertyMap);
-        Entity entity = entityBuilder.build();
+            entity.setProperties(entityPropertyMap);
         entityManager.addEntity(entity);
         entity.printData();
     }
     
-    private void setEntityDescriptionandURL(Entity.Builder entityBuilder, Matcher matcher) {
+    private void setEntityDescriptionandURL(Entity entity, Matcher matcher) {
         if (matcher.find())
-            entityBuilder.setDescription(matcher.group(1).trim());
+            entity.setDescription(matcher.group(1).trim());
         if (matcher.find())
-            entityBuilder.setURL(matcher.group(1).trim());
+            entity.setURL(matcher.group(1).trim());
     }
     
-    private void setEntityInherits(Entity.Builder entityBuilder, Matcher matcher) {
+    private void setEntityInherits(Entity entity, Matcher matcher) {
         if (matcher.find())
-            entityBuilder.setInherits(matcher.group(1).split(",\\s*"));
+            entity.setInherits(matcher.group(1).split(",\\s*"));
     }
     
-    private void setEntitySize(Entity.Builder entityBuilder, Matcher matcher) {
+    private void setEntityFlags(Entity entity, Matcher matcher) {
+        if (matcher.find())
+            entity.setFlags(matcher.group(1).split(",\\s*"));
+    }
+    
+    private void setEntitySize(Entity entity, Matcher matcher) {
         if (matcher.find()) {
             try {
                 int[][] size = new int[2][3];
@@ -373,7 +436,7 @@ public class EventHandler {
                     for (int j = 0; j < 3; j++)
                         size[i][j] = Integer.parseInt(matcher.group(i * 3 + j + 1));
                 }
-                entityBuilder.setSize(size);
+                entity.setSize(size);
             }
             catch (NumberFormatException e) {
                 e.printStackTrace();
@@ -381,14 +444,14 @@ public class EventHandler {
         }
     }
     
-    private void setEntityColor(Entity.Builder entityBuilder, Matcher matcher) {
+    private void setEntityColor(Entity entity, Matcher matcher) {
         if (matcher.find()) {
             try {
                 short[] color = new short[3];
 
                 for (int i = 0; i < 3; i++)
                     color[i] = Short.parseShort(matcher.group(i + 1));
-                entityBuilder.setColor(color);
+                entity.setColor(color);
             }
             catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
                 e.printStackTrace();
@@ -396,19 +459,19 @@ public class EventHandler {
         }
     }
     
-    private void setEntitySprite(Entity.Builder entityBuilder, Matcher matcher) {
+    private void setEntitySprite(Entity entity, Matcher matcher) {
         if (matcher.find())
-            entityBuilder.setSprite(matcher.group(1).trim());
+            entity.setSprite(matcher.group(1).trim());
     }
     
-    private void setEntityDecal(Entity.Builder entityBuilder, Matcher matcher) {
+    private void setEntityDecal(Entity entity, Matcher matcher) {
         if (matcher.find())
-            entityBuilder.setDecal(true);
+            entity.setDecal(true);
     }
     
-    private void setEntityStudio(Entity.Builder entityBuilder, Matcher matcher) {
+    private void setEntityStudio(Entity entity, Matcher matcher) {
         if (matcher.find())
-            entityBuilder.setStudio(matcher.group(1).trim());
+            entity.setStudio(matcher.group(1).trim());
     }
     
     private boolean refreshEntityTab(int tabIndex) {
