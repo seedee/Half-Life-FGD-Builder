@@ -8,6 +8,7 @@ package com.seedee.fgdbuilder;
 import java.awt.BorderLayout;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.net.URI;
 import java.util.ArrayList;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -39,6 +40,9 @@ public class FGDBuilder {
     private JMenuItem reloadMenuItem;
     private JMenuItem closeMenuItem;
     private JMenuItem exitMenuItem;
+    private JMenuItem vdcMenuItem;
+    private JMenuItem bugReportMenuItem;
+    private JMenuItem feedbackMenuItem;
     private JMenuItem aboutMenuItem;
     private final JTabbedPane tabbedPane = new JTabbedPane();
     private final DefaultListModel<Entity> entityListModel = new DefaultListModel();
@@ -126,6 +130,18 @@ public class FGDBuilder {
         closeMenuItem.setEnabled(enabled);
     }
     
+    public void addVdcListener(ActionListener listener) {
+        vdcMenuItem.addActionListener(listener);
+    }
+    
+    public void addBugReportListener(ActionListener listener) {
+        bugReportMenuItem.addActionListener(listener);
+    }
+    
+    public void addFeedbackListener(ActionListener listener) {
+        feedbackMenuItem.addActionListener(listener);
+    }
+    
     public void addAboutListener(ActionListener listener) {
         aboutMenuItem.addActionListener(listener);
     }
@@ -163,7 +179,7 @@ public class FGDBuilder {
     private JMenu createFileMenu() {
         JMenu fileMenu = new JMenu("File");
         fileMenu.setMnemonic(KeyEvent.VK_F); //Check convention for mnemonics later
-        
+
         loadMenuItem = createMenuItem("Load", KeyEvent.VK_L, true);
         fileMenu.add(loadMenuItem);
         
@@ -183,7 +199,17 @@ public class FGDBuilder {
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
         
-        aboutMenuItem = createMenuItem("About " + APP_TITLE, KeyEvent.VK_E, true);
+        vdcMenuItem = createMenuItem("View FGD documentation", KeyEvent.VK_V, true);
+        helpMenu.add(vdcMenuItem);
+        
+        bugReportMenuItem = createMenuItem("Report a Bug", KeyEvent.VK_R, true);
+        helpMenu.add(bugReportMenuItem);
+        
+        feedbackMenuItem = createMenuItem("Send Feedback", KeyEvent.VK_S, true);
+        helpMenu.add(feedbackMenuItem);
+        helpMenu.addSeparator();
+        
+        aboutMenuItem = createMenuItem("About " + APP_TITLE, KeyEvent.VK_A, true);
         helpMenu.add(aboutMenuItem);
         
         return helpMenu;
