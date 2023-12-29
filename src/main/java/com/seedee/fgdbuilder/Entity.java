@@ -20,9 +20,9 @@ public class Entity {
     private String description; // :\s*"([^"\[]*)
     private String url;
     private String[] inherits; // base\(([^)]*)\)
-    private String[] flags; // flags\(([^)]*)\)
-    private int[][] size; // size\(\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*,\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*\)
-    private short[] color; // color\(\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*\)
+    private boolean[] flags = new boolean[4]; // flags\(([^)]*)\)
+    private int[][] size = new int[2][3]; // size\(\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*,\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*\)
+    private short[] color = new short[3]; // color\(\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*\)
     private String sprite; // iconsprite\("*([^"]*)"*\)
     private boolean decal; // decal\(([^)]*)\)
     private String studio; // studio\("*([^"]*)"*\)
@@ -50,40 +50,83 @@ public class Entity {
         return name;
     }
     
+    public void setDescription(String description) {
+        this.description = description;
+    }
+    
+    public String getDescription() {
+        return description;
+    }
+    
+    public void setURL(String url) {
+        this.url = url;
+    }
+    
+    public String getURL() {
+        return url;
+    }
+    
     public void setInherits(String[] inherits) {
         this.inherits = inherits;
     }
     
+    public String[] getInherits() {
+        return inherits;
+    }
+    
     public void setFlags(String[] flags) {
-        this.flags = flags;
+        for (String flag : flags) {
+            switch (flag.toLowerCase()) {
+                case "angle" -> this.flags[0] = true;
+                case "light" -> this.flags[1] = true;
+                case "path" -> this.flags[2] = true;
+                case "item" -> this.flags[3] = true;
+            }
+        }
+    }
+    
+    public boolean[] getFlags() {
+        return flags;
     }
     
     public void setSize(int[][] size) {
         this.size = size;
     }
     
+    public int[][] getSize() {
+        return size;
+    }
+    
     public void setColor(short[] color) {
         this.color = color;
+    }
+    
+    public short[] getColor() {
+        return color;
     }
     
     public void setSprite(String sprite) {
         this.sprite = sprite;
     }
     
+    public String getSprite() {
+        return sprite;
+    }
+    
     public void setDecal(boolean decal) {
         this.decal = decal;
+    }
+    
+    public boolean isDecal() {
+        return decal;
     }
     
     public void setStudio(String studio) {
         this.studio = studio;
     }
     
-    public void setDescription(String description) {
-        this.description = description;
-    }
-    
-    public void setURL(String url) {
-        this.url = url;
+    public String getStudio() {
+        return studio;
     }
     
     public void setProperties(LinkedHashMap<String[], ArrayList<String[]>> propertyMap) {
