@@ -17,11 +17,14 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.regex.Matcher;
 import javax.swing.JFileChooser;
+import javax.swing.JList;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.event.ChangeEvent;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
@@ -32,8 +35,9 @@ public class EventHandler {
     
     private static final String FILE_EXTENSION = "fgd";
     private static final URI[] URIS;
-    private FGDBuilder fgdBuilder;
-    private EntityManager entityManager;
+    
+    private final FGDBuilder fgdBuilder;
+    private final EntityManager entityManager;
     
     static {
         try {
@@ -59,11 +63,14 @@ public class EventHandler {
         fgdBuilder.addReloadListener(this::reloadEventHandler);
         fgdBuilder.addCloseListener(this::closeEventHandler);
         fgdBuilder.addExitListener(this::exitEventHandler);
+        fgdBuilder.addOptionsListener(this::optionsEventHandler);
+        fgdBuilder.addLogListener(this::logEventHandler);
         fgdBuilder.addVdcListener(this::vdcEventHandler);
         fgdBuilder.addBugReportListener(this::bugReportEventHandler);
         fgdBuilder.addFeedbackListener(this::feedbackEventHandler);
         fgdBuilder.addAboutListener(this::aboutEventHandler);
-        fgdBuilder.addTabListener(this::tabEventHandler);
+        fgdBuilder.addEntityListTabListener(this::entityListTabEventHandler);
+        fgdBuilder.addEntityListListener(this::entityListEventHandler);
     }
     
     private void loadEventHandler(ActionEvent e) {
@@ -104,20 +111,37 @@ public class EventHandler {
         }
     }
     
+    private void showFileError() {
+        fgdBuilder.setStatusLabel("File must be a Forge Game Data (*." + FILE_EXTENSION + ") file");
+        JOptionPane.showMessageDialog(null, "File must be a Forge Game Data (*." + FILE_EXTENSION + ") file", "Warning", JOptionPane.WARNING_MESSAGE);
+    }
+    
     private void closeEventHandler(ActionEvent e) {
         if (!(e.getSource() instanceof JMenuItem))
             return;
+        entityManager.clearEntityList();
         fgdBuilder.clearEntityListModel();
         fgdBuilder.enableFileMenuItems(false);
         fgdBuilder.setStatusLabel("Closed " + entityManager.getFgdFile());
         entityManager.setFgdFile(null);
-        entityManager.clearEntityList();
     }
     
     private void exitEventHandler(ActionEvent e) {
         if (!(e.getSource() instanceof JMenuItem))
             return;
         System.exit(0);
+    }
+    
+    private void optionsEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JMenuItem))
+            return;
+        System.out.println("Options");
+    }
+    
+    private void logEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JMenuItem))
+            return;
+        System.out.println("Log");
     }
     
     private void vdcEventHandler(ActionEvent e) {
@@ -162,32 +186,52 @@ public class EventHandler {
         System.out.println("About");
     }
     
-    private void tabEventHandler(ChangeEvent e) {
+    private void entityListTabEventHandler(ChangeEvent e) {
         if (!(e.getSource() instanceof JTabbedPane))
             return;
-        JTabbedPane tabbedPane = (JTabbedPane) e.getSource();
-        int newTabIndex = tabbedPane.getSelectedIndex();
+        JTabbedPane entityListTabbedPane = (JTabbedPane) e.getSource();
+        int newTabIndex = entityListTabbedPane.getSelectedIndex();
 
-        if (!refreshEntityTab(newTabIndex))
+        if (!refreshEntityListTab(newTabIndex))
             return;
-        JSplitPane entitySplitPane = fgdBuilder.getEntitySplitPane();
+        JSplitPane splitPane = fgdBuilder.getSplitPane();
         int previousTabIndex = 0;
         
-        for (int i = 0; i < tabbedPane.getTabCount(); i++) {
-            if (tabbedPane.getComponentAt(i) == entitySplitPane)
+        for (int i = 0; i < entityListTabbedPane.getTabCount(); i++) {
+            if (entityListTabbedPane.getComponentAt(i) == splitPane)
                 previousTabIndex = i;
         }
         if (previousTabIndex != newTabIndex) {
-            tabbedPane.setComponentAt(previousTabIndex, null);
-            tabbedPane.setComponentAt(newTabIndex, entitySplitPane);
-            tabbedPane.revalidate();
-            tabbedPane.repaint();
+            entityListTabbedPane.setComponentAt(previousTabIndex, null);
+            entityListTabbedPane.setComponentAt(newTabIndex, splitPane);
+            entityListTabbedPane.revalidate();
+            entityListTabbedPane.repaint();
         }
     }
     
-    private void showFileError() {
-        fgdBuilder.setStatusLabel("File must be a Forge Game Data (*." + FILE_EXTENSION + ") file");
-        JOptionPane.showMessageDialog(null, "File must be a Forge Game Data (*." + FILE_EXTENSION + ") file", "Warning", JOptionPane.WARNING_MESSAGE);
+    private void entityListEventHandler(ListSelectionEvent e) {
+        if (!(e.getSource() instanceof JList))
+            return;
+        if (e.getValueIsAdjusting())
+            return;
+        JList<Entity> entityList = (JList<Entity>) e.getSource();
+        
+        if (entityList.getSelectedIndices().length != 1) {
+            fgdBuilder.enableEditingPanels(false);
+            return;
+        }
+        Entity selectedEntity = entityList.getSelectedValue();
+        fgdBuilder.setEntityName(selectedEntity.toString());
+        fgdBuilder.setEntityDescription(selectedEntity.getDescription());
+        fgdBuilder.setEntityURL(selectedEntity.getURL());
+        fgdBuilder.setEntityInherits(selectedEntity.getInherits());
+        fgdBuilder.setEntityFlags(selectedEntity.getFlags());
+        fgdBuilder.setEntitySize(selectedEntity.getSize());
+        fgdBuilder.setEntityColor(selectedEntity.getColor());
+        fgdBuilder.setEntitySprite(selectedEntity.getSprite());
+        fgdBuilder.setEntityDecal(selectedEntity.isDecal());
+        fgdBuilder.setEntityStudio(selectedEntity.getStudio());
+        fgdBuilder.enableEditingPanels(true);
     }
     
     private void parseEntities(boolean reloading) {
@@ -254,7 +298,7 @@ public class EventHandler {
                     }
                 }
             }
-            if (!refreshEntityTab(fgdBuilder.getCurrentTab()))
+            if (!refreshEntityListTab(fgdBuilder.getCurrentTab()))
                 return;
             fgdBuilder.enableFileMenuItems(true);
             
@@ -395,7 +439,7 @@ public class EventHandler {
             case "@PointClass" -> entity = new Entity(EntityType.POINTCLASS, nameMatcher.group(1));
             default -> { return; }
         }
-        setEntityDescriptionandURL(entity, entityManager.getEntityPattern(2).matcher(entityString));
+        setEntityDescriptionAndURL(entity, entityManager.getEntityPattern(2).matcher(entityString));
         setEntityInherits(entity, entityManager.getEntityPattern(3).matcher(entityString));
         setEntityFlags(entity, entityManager.getEntityPattern(4).matcher(entityString));
         setEntitySize(entity, entityManager.getEntityPattern(5).matcher(entityString));
@@ -410,7 +454,7 @@ public class EventHandler {
         entity.printData();
     }
     
-    private void setEntityDescriptionandURL(Entity entity, Matcher matcher) {
+    private void setEntityDescriptionAndURL(Entity entity, Matcher matcher) {
         if (matcher.find())
             entity.setDescription(matcher.group(1).trim());
         if (matcher.find())
@@ -474,13 +518,22 @@ public class EventHandler {
             entity.setStudio(matcher.group(1).trim());
     }
     
-    private boolean refreshEntityTab(int tabIndex) {
+    private boolean refreshEntityListTab(int tabIndex) {
+        ListSelectionListener[] listeners = fgdBuilder.getEntityListListeners();
+        
+        for (ListSelectionListener listener : listeners) {
+            fgdBuilder.removeEntityListListener(listener);
+        }
         switch (tabIndex) {
             case 0 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.BASECLASS));
             case 1 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.SOLIDCLASS));
             case 2 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.POINTCLASS));
-            default -> { return false; }
+            default -> {
+                fgdBuilder.addEntityListListener(this::entityListEventHandler);
+                return false;
+            }
         }
+        fgdBuilder.addEntityListListener(this::entityListEventHandler);
         return true;
     }
 }
