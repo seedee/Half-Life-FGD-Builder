@@ -17,6 +17,7 @@ public class EntityManager {
     
     private static final Pattern[] entityPatterns;
     private static final Pattern[] entityPropertyPatterns;
+    
     private File fgdFile;
     private final EnumMap<EntityType, ArrayList<Entity>> entityListMap = new EnumMap<>(EntityType.class);
     
