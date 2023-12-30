@@ -21,8 +21,10 @@ public class Entity {
     private String url;
     private String[] inherits; // base\(([^)]*)\)
     private boolean[] flags = new boolean[4]; // flags\(([^)]*)\)
-    private int[][] size = new int[2][3]; // size\(\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*,\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*\)
-    private short[] color = new short[3]; // color\(\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*\)
+    private boolean hasSize;
+    private int[][] size; // size\(\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*,\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*\)
+    private boolean hasColor;
+    private short[] color; // color\(\s*([-+]?\d+)\s+([-+]?\d+)\s+([-+]?\d+)\s*\)
     private String sprite; // iconsprite\("*([^"]*)"*\)
     private boolean decal; // decal\(([^)]*)\)
     private String studio; // studio\("*([^"]*)"*\)
@@ -31,6 +33,8 @@ public class Entity {
     public Entity(EntityType entClass, String name) {
         this.entClass = entClass;
         this.name = name;
+        this.size = new int[][] { {-8, -8, -8}, {8, 8, 8} };
+        this.color = new short[] { 220, 30, 220 };
     }
     
     public void setClass(EntityType entClass) {
@@ -89,12 +93,28 @@ public class Entity {
         return flags;
     }
     
+    public void enableSize(boolean hasSize) {
+        this.hasSize = hasSize;
+    }
+    
+    public boolean hasSize() {
+        return hasSize;
+    }
+    
     public void setSize(int[][] size) {
         this.size = size;
     }
     
     public int[][] getSize() {
         return size;
+    }
+    
+    public void enableColor(boolean hasColor) {
+        this.hasColor = hasColor;
+    }
+    
+    public boolean hasColor() {
+        return hasColor;
     }
     
     public void setColor(short[] color) {
@@ -113,7 +133,7 @@ public class Entity {
         return sprite;
     }
     
-    public void setDecal(boolean decal) {
+    public void enableDecal(boolean decal) {
         this.decal = decal;
     }
     
