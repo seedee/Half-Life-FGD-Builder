@@ -6,6 +6,8 @@ package com.seedee.fgdbuilder;
 
 import java.awt.Desktop;
 import java.awt.event.ActionEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -16,12 +18,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.regex.Matcher;
+import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
+import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
@@ -71,6 +76,7 @@ public class EventHandler {
         fgdBuilder.addAboutListener(this::aboutEventHandler);
         fgdBuilder.addEntityListTabListener(this::entityListTabEventHandler);
         fgdBuilder.addEntityListListener(this::entityListEventHandler);
+        fgdBuilder.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
     }
     
     private void loadEventHandler(ActionEvent e) {
@@ -83,7 +89,7 @@ public class EventHandler {
             fileChooser.setFileFilter(filter);
             fileChooser.setCurrentDirectory(new File("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Half-Life\\cstrike"));
 
-            if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+            if (fgdBuilder.showFileChooserOpenDialog(fileChooser) == JFileChooser.APPROVE_OPTION) {
                 if (!fileChooser.getSelectedFile().getName().endsWith("." + FILE_EXTENSION)) {
                     entityManager.setFgdFile(null);
                     showFileError();
@@ -220,18 +226,48 @@ public class EventHandler {
             fgdBuilder.enableEditingPanels(false);
             return;
         }
+        fgdBuilder.enableEditingPanels(true);
         Entity selectedEntity = entityList.getSelectedValue();
         fgdBuilder.setEntityName(selectedEntity.toString());
         fgdBuilder.setEntityDescription(selectedEntity.getDescription());
         fgdBuilder.setEntityURL(selectedEntity.getURL());
         fgdBuilder.setEntityInherits(selectedEntity.getInherits());
         fgdBuilder.setEntityFlags(selectedEntity.getFlags());
-        fgdBuilder.setEntitySize(selectedEntity.getSize());
-        fgdBuilder.setEntityColor(selectedEntity.getColor());
+        fgdBuilder.setEntitySize(selectedEntity.hasSize(), selectedEntity.getSize());
+        fgdBuilder.setEntityColor(selectedEntity.hasColor(), selectedEntity.getColor());
         fgdBuilder.setEntitySprite(selectedEntity.getSprite());
         fgdBuilder.setEntityDecal(selectedEntity.isDecal());
         fgdBuilder.setEntityStudio(selectedEntity.getStudio());
-        fgdBuilder.enableEditingPanels(true);
+    }
+    
+    private void jackCheckBoxEventHandler(ItemEvent e) {
+        if (!(e.getSource() instanceof JCheckBox))
+            return;
+        if (e.getStateChange() != ItemEvent.SELECTED)
+            fgdBuilder.enableJackFeatures(false);
+        else {
+            ItemListener[] listeners = fgdBuilder.getJackCheckBoxListeners();
+        
+            for (ItemListener listener : listeners) {
+                fgdBuilder.removeJackCheckBoxListener(listener);
+            }
+            int result = fgdBuilder.showConfirmDialog(
+                    "Saving FGDs with this option will break compatibility with Valve Hammer Editor.",
+                    "Enable J.A.C.K. Features",
+                    JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+            JCheckBox jackCheckBox = (JCheckBox) e.getSource();
+            
+            if (result != JOptionPane.OK_OPTION) {
+                jackCheckBox.setSelected(false);
+                fgdBuilder.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
+                return;
+            }
+            jackCheckBox.setSelected(true);
+            fgdBuilder.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
+            fgdBuilder.enableJackFeatures(true);
+        }
     }
     
     private void parseEntities(boolean reloading) {
@@ -298,7 +334,7 @@ public class EventHandler {
                     }
                 }
             }
-            if (!refreshEntityListTab(fgdBuilder.getCurrentTab()))
+            if (!refreshEntityListTab(fgdBuilder.getCurrentEntityListTab()))
                 return;
             fgdBuilder.enableFileMenuItems(true);
             
@@ -434,9 +470,9 @@ public class EventHandler {
         
         Entity entity;
         switch (entClassMatcher.group(1)) {
-            case "@BaseClass" -> entity = new Entity(EntityType.BASECLASS, nameMatcher.group(1));
-            case "@SolidClass" -> entity = new Entity(EntityType.SOLIDCLASS, nameMatcher.group(1));
-            case "@PointClass" -> entity = new Entity(EntityType.POINTCLASS, nameMatcher.group(1));
+            case "@BaseClass" -> entity = new Entity(EntityType.BASECLASS, nameMatcher.group(1).trim());
+            case "@SolidClass" -> entity = new Entity(EntityType.SOLIDCLASS, nameMatcher.group(1).trim());
+            case "@PointClass" -> entity = new Entity(EntityType.POINTCLASS, nameMatcher.group(1).trim());
             default -> { return; }
         }
         setEntityDescriptionAndURL(entity, entityManager.getEntityPattern(2).matcher(entityString));
@@ -451,7 +487,6 @@ public class EventHandler {
         if (entityPropertyMap != null)
             entity.setProperties(entityPropertyMap);
         entityManager.addEntity(entity);
-        entity.printData();
     }
     
     private void setEntityDescriptionAndURL(Entity entity, Matcher matcher) {
@@ -480,6 +515,7 @@ public class EventHandler {
                     for (int j = 0; j < 3; j++)
                         size[i][j] = Integer.parseInt(matcher.group(i * 3 + j + 1));
                 }
+                entity.enableSize(true);
                 entity.setSize(size);
             }
             catch (NumberFormatException e) {
@@ -495,6 +531,7 @@ public class EventHandler {
 
                 for (int i = 0; i < 3; i++)
                     color[i] = Short.parseShort(matcher.group(i + 1));
+                entity.enableColor(true);
                 entity.setColor(color);
             }
             catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
@@ -510,7 +547,7 @@ public class EventHandler {
     
     private void setEntityDecal(Entity entity, Matcher matcher) {
         if (matcher.find())
-            entity.setDecal(true);
+            entity.enableDecal(true);
     }
     
     private void setEntityStudio(Entity entity, Matcher matcher) {
