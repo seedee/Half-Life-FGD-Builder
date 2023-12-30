@@ -5,38 +5,56 @@
 
 package com.seedee.fgdbuilder;
 
+import com.formdev.flatlaf.FlatLightLaf;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JColorChooser;
+import javax.swing.JComponent;
+import javax.swing.JFileChooser;
+import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JSpinner.DefaultEditor;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionListener;
+import net.miginfocom.swing.MigLayout;
 
 /**
  *
@@ -68,35 +86,58 @@ public class FGDBuilder {
     private final JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(entityList), rightPanel);
     
     private final JTabbedPane entityTabbedPane = new JTabbedPane();
-    private final JCheckBox jackFeaturesCheckBox = new JCheckBox("Enable J.A.C.K. Features");
     
-    private final JPanel entityPanel = new JPanel(new GridBagLayout());
+    private boolean editingPanels;
+    private final JPanel entityPanel = new JPanel(new MigLayout("insets 0, gap 0, wrap 1, ltr", "[grow]"));
     private final JTextField entityNameTextField = new JTextField();
     private final JTextField entityDescriptionTextField = new JTextField();
     private final JTextField entityURLTextField = new JTextField();
+    
     private final JTextField entityInheritsTextField = new JTextField();
     private final JButton entityInheritsAddButton = new JButton("Add");
     private final JButton entityInheritsRemoveButton = new JButton("Remove");
     private final DefaultListModel<String> entityInheritsListModel = new DefaultListModel();
     private final JList<String> entityInheritsList = new JList<>(entityInheritsListModel);
-    private final JCheckBox entityFlagsAngleCheckBox = new JCheckBox("Angle");
-    private final JCheckBox entityFlagsLightCheckBox = new JCheckBox("Light");
-    private final JCheckBox entityFlagsPathCheckBox = new JCheckBox("Path");
-    private final JCheckBox entityFlagsItemCheckBox = new JCheckBox("Item");
-    private final JTextField entitySizeTextField = new JTextField();
-    private final JTextField entityColorTextField = new JTextField();
+    
+    private final JCheckBox[] entityFlagsCheckBoxes = {
+        new JCheckBox("Angle"),
+        new JCheckBox("Light"),
+        new JCheckBox("Path"),
+        new JCheckBox("Item")
+    };
+    
+    private final JCheckBox entitySizeCheckBox = new JCheckBox();
+    private final JSpinner[] entitySizeSpinners = {
+        new JSpinner(new SpinnerNumberModel(0, -512, 512, 1)),
+        new JSpinner(new SpinnerNumberModel(0, -512, 512, 1)),
+        new JSpinner(new SpinnerNumberModel(0, -512, 512, 1)),
+        new JSpinner(new SpinnerNumberModel(0, -512, 512, 1)),
+        new JSpinner(new SpinnerNumberModel(0, -512, 512, 1)),
+        new JSpinner(new SpinnerNumberModel(0, -512, 512, 1))
+    };
+    
+    private final JCheckBox entityColorCheckBox = new JCheckBox();
+    private final JButton entityColorButton = new JButton("Choose...");
+    private final JColorChooser entityColorChooser = new JColorChooser();
+    
     private final JTextField entitySpriteTextField = new JTextField();
     private final JButton entitySpriteBrowseButton = new JButton("Browse...");
+    
     private final JCheckBox entityDecalCheckBox = new JCheckBox();
+    
     private final JTextField entityStudioTextField = new JTextField("");
     private final JButton entityStudioBrowseButton = new JButton("Browse...");
+    
+    private boolean jackFeatures;
+    private final JCheckBox jackCheckBox = new JCheckBox("Enable J.A.C.K. Features");
     
     private final JLabel statusLabel = new JLabel("Ready");
     
     public static void main(String[] args) {
+        FlatLightLaf.setup();
+        
         SwingUtilities.invokeLater(() -> {
             try {
-                //UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
                 FGDBuilder fgdBuilder = new FGDBuilder();
                 EntityManager entityManager = new EntityManager();
                 new EventHandler(fgdBuilder, entityManager);
@@ -109,7 +150,7 @@ public class FGDBuilder {
 
     public FGDBuilder() {
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        mainFrame.setSize(700,680);
+        mainFrame.setSize(800,600);
         mainFrame.setLayout(new BorderLayout());
         
         mainFrame.setJMenuBar(createMenuBar());
@@ -117,14 +158,13 @@ public class FGDBuilder {
         createEntityListTabs(); 
         mainFrame.add(entityListTabbedPane, BorderLayout.CENTER);
         
-        splitPane.setResizeWeight(.1);
-        
         createEntityTabs();
         createEntityPanel();
+        ToolTipManager.sharedInstance().setInitialDelay(100);
         rightPanel.add(entityTabbedPane, BorderLayout.CENTER);
         enableEditingPanels(false);
         
-        rightPanel.add(createJackFeaturesPanel(), BorderLayout.SOUTH);
+        rightPanel.add(createJackPanel(), BorderLayout.SOUTH);
         
         mainFrame.add(createStatusPanel(), BorderLayout.SOUTH);
         
@@ -132,6 +172,14 @@ public class FGDBuilder {
         mainFrame.validate();
         mainFrame.repaint();
         mainFrame.setVisible(true);
+    }
+    
+    public int showFileChooserOpenDialog (JFileChooser fileChooser) {
+        return fileChooser.showOpenDialog(mainFrame);
+    }
+    
+    public int showConfirmDialog(String message, String title, int optionType, int messageType) {
+        return JOptionPane.showConfirmDialog(mainFrame, message, title, optionType, messageType);
     }
     
     public void addLoadListener(ActionListener listener) {
@@ -188,15 +236,26 @@ public class FGDBuilder {
     }
     
     public ListSelectionListener[] getEntityListListeners() {
-        ListSelectionListener[] listeners = entityList.getListSelectionListeners();
-        return listeners;
+        return entityList.getListSelectionListeners();
     }
     
     public void removeEntityListListener(ListSelectionListener listener) {
         entityList.removeListSelectionListener(listener);
     }
     
-    public int getCurrentTab() {
+    public void addJackCheckBoxListener(ItemListener listener) {
+        jackCheckBox.addItemListener(listener);
+    }
+    
+    public ItemListener[] getJackCheckBoxListeners() {
+        return jackCheckBox.getItemListeners();
+    }
+    
+    public void removeJackCheckBoxListener(ItemListener listener) {
+        jackCheckBox.removeItemListener(listener);
+    }
+    
+    public int getCurrentEntityListTab() {
         return entityListTabbedPane.getSelectedIndex();
     }
     
@@ -221,7 +280,10 @@ public class FGDBuilder {
     }
     
     public void enableEditingPanels(boolean enabled) {
+        editingPanels = enabled;
         setEnabledChildren(entityPanel, enabled);
+        enableJackFeatures(jackFeatures);
+        enableToolTips(enabled);
     }
     
     public void setEnabledChildren(Container container, boolean enabled) {
@@ -231,8 +293,12 @@ public class FGDBuilder {
             component.setEnabled(enabled);
             
             if (!enabled) {
-                if (component instanceof JTextField textField)
+                if (component instanceof JTextField textField && !(component.getParent().getParent() instanceof JSpinner))
                     textField.setText("");
+                if (component instanceof JSpinner spinner) {
+                    SpinnerNumberModel spinnerModel = (SpinnerNumberModel) spinner.getModel();
+                    spinnerModel.setValue(0);
+                }
                 if (component instanceof JList list) {
                     DefaultListModel<String> listModel = (DefaultListModel<String>) list.getModel();
                     listModel.clear();
@@ -242,6 +308,18 @@ public class FGDBuilder {
             }
             if (component instanceof Container childContainer)
                 setEnabledChildren(childContainer, enabled);
+        }
+    }
+    
+    public void enableJackFeatures(boolean enabled) {
+        jackFeatures = enabled;
+        
+        if (!editingPanels)
+            return;
+        entityURLTextField.setEnabled(enabled);
+        
+        for (JCheckBox entityFlagsCheckBox : entityFlagsCheckBoxes) {
+            entityFlagsCheckBox.setEnabled(enabled);
         }
     }
     
@@ -266,18 +344,37 @@ public class FGDBuilder {
     }
     
     public void setEntityFlags(boolean[] flags) {
-        entityFlagsAngleCheckBox.setSelected(flags[0]);
-        entityFlagsLightCheckBox.setSelected(flags[1]);
-        entityFlagsPathCheckBox.setSelected(flags[2]);
-        entityFlagsItemCheckBox.setSelected(flags[3]);
+        entityFlagsCheckBoxes[0].setSelected(flags[0]);
+        entityFlagsCheckBoxes[1].setSelected(flags[1]);
+        entityFlagsCheckBoxes[2].setSelected(flags[2]);
+        entityFlagsCheckBoxes[3].setSelected(flags[3]);
     }
     
-    public void setEntitySize(int[][] size) {
-        entitySizeTextField.setText(Arrays.toString(size[0]) + " " + Arrays.toString(size[1]));
+    public void setEntitySize(boolean hasSize, int[][] size) {
+        entitySizeCheckBox.setSelected(hasSize);
+        for (JSpinner entitySizeSpinner : entitySizeSpinners)
+            entitySizeSpinner.setEnabled(hasSize);
+        
+        if (hasSize) {
+            for (int i = 0; i < 2; i++) {
+                for (int j = 0; j < 3; j++) {
+                    entitySizeSpinners[(i * 3) + j].setValue(size[i][j]);
+                }
+            }
+            return;
+        }
+        for (int i = 0; i < 6; i++)
+            entitySizeSpinners[i].setValue(0);
     }
     
-    public void setEntityColor(short[] color) {
-        entityColorTextField.setText(Arrays.toString(color));
+    public void setEntityColor(boolean hasColor, short[] color) {
+        entityColorCheckBox.setSelected(hasColor);
+        
+        if (hasColor) {
+            entityColorChooser.setColor(color[0], color[1], color[2]);
+            return;
+        }
+        entityColorChooser.setColor(220, 30, 220);
     }
     
     public void setEntitySprite(String sprite) {
@@ -382,148 +479,124 @@ public class FGDBuilder {
     }
     
     private void createEntityPanel() {
-        GridBagConstraints c = new GridBagConstraints();
-        c.insets = new Insets(5, 5, 5, 5);
+        int labelColumnWidth = 40;
+        JPanel group1 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 2, ltr", "[" + labelColumnWidth + "pt, right][grow]"));
+        group1.add(new JLabel("Name:"));
+        group1.add(entityNameTextField, "grow, span");
         
-        c.anchor = GridBagConstraints.EAST;
-        c.gridx = 0;
-        c.gridy = 0;
-        entityPanel.add(new JLabel("Name:"), c);
-        
-        c.gridy = 1;
-        entityPanel.add(new JLabel("Description:"), c);
-        
-        c.gridy = 2;
-        entityPanel.add(new JLabel("URL:"), c);
-        
-        c.anchor = GridBagConstraints.NORTHEAST;
-        c.gridy = 3;
-        entityPanel.add(new JLabel("Inherits:"), c);
-        
-        c.anchor = GridBagConstraints.EAST;
-        c.gridy = 5;
-        entityPanel.add(new JLabel("Flags:"), c);
-        
-        c.gridy = 6;
-        entityPanel.add(new JLabel("Size:"), c);
-        
-        c.gridy = 7;
-        entityPanel.add(new JLabel("Color:"), c);
-        
-        c.gridy = 8;
-        entityPanel.add(new JLabel("Sprite:"), c);
-        
-        c.gridy = 9;
-        entityPanel.add(new JLabel("Model:"), c);
-        
-        c.gridy = 10;
-        entityPanel.add(new JLabel("Decal:"), c);
-        
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.anchor = GridBagConstraints.WEST;
-        c.weightx = 1.0;
-        c.gridwidth = 3;
-        c.gridx = 1;
-        c.gridy = 0;
-        entityPanel.add(entityNameTextField, c);
-        
-        c.gridy = 1;
-        entityPanel.add(entityDescriptionTextField, c);
-        
-        c.gridy = 2;
-        entityPanel.add(entityURLTextField, c);
-        
-        c.gridwidth = 1;
-        c.gridy = 3;
-        entityPanel.add(entityInheritsTextField, c);
-        
-        c.anchor = GridBagConstraints.EAST;
-        c.weightx = 0.0;
-        c.gridx = 2;
-        entityPanel.add(entityInheritsAddButton, c);
-        
-        c.gridx = 3;
-        entityPanel.add(entityInheritsRemoveButton, c);
-        
-        c.anchor = GridBagConstraints.WEST;
-        c.weightx = 1.0;
-        c.gridwidth = 3;
-        c.gridx = 1;
-        c.gridy = 4;
-        entityPanel.add(new JScrollPane(entityInheritsList), c);
-        
-        c.gridy = 5;
-        JPanel flagsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        entityFlagsAngleCheckBox.setHorizontalAlignment(SwingConstants.LEFT);
-        flagsPanel.add(entityFlagsAngleCheckBox);
-        entityFlagsLightCheckBox.setHorizontalAlignment(SwingConstants.LEFT);
-        flagsPanel.add(entityFlagsLightCheckBox);
-        entityFlagsPathCheckBox.setHorizontalAlignment(SwingConstants.LEFT);
-        flagsPanel.add(entityFlagsPathCheckBox);
-        entityFlagsItemCheckBox.setHorizontalAlignment(SwingConstants.LEFT);
-        flagsPanel.add(entityFlagsItemCheckBox);
-        entityPanel.add(flagsPanel, c);
-        
-        c.gridy = 6;
-        entityPanel.add(entitySizeTextField, c);
-        
-        c.gridy = 7;
-        entityPanel.add(entityColorTextField, c);
+        group1.add(new JLabel("Description:"));
+        group1.add(entityDescriptionTextField, "grow, span");
 
-        c.gridwidth = 2;
-        c.gridy = 8;
-        entityPanel.add(entitySpriteTextField, c);
+        group1.add(new JLabel("URL:"));
+        group1.add(entityURLTextField, "grow, span");
+        entityPanel.add(group1, "grow");
+                
+        JPanel group2 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, ltr", "[" + labelColumnWidth + "pt, right][grow][]", "[][60pt]"));
+        group2.add(new JLabel("Inherits:"));
+        group2.add(entityInheritsTextField, "grow");
+        group2.add(entityInheritsAddButton, "split 2");
+        group2.add(entityInheritsRemoveButton);
+        group2.add(new JScrollPane(entityInheritsList), "cell 1 1, grow, span");
+        entityPanel.add(group2, "grow");
         
-        c.anchor = GridBagConstraints.EAST;
-        c.weightx = 0.0;
-        c.gridwidth = 1;
-        c.gridx = 3;
-        entityPanel.add(entitySpriteBrowseButton, c);
+        JPanel group3 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, ltr, wrap 4", "[" + labelColumnWidth + "pt, right][][][grow]"));
+        group3.add(new JLabel("Flags:"));
+        group3.add(entityFlagsCheckBoxes[0], "split 4, span 2");
+        group3.add(entityFlagsCheckBoxes[1]);
+        group3.add(entityFlagsCheckBoxes[2]);
+        group3.add(entityFlagsCheckBoxes[3]);
+        group3.add(new JPanel(), "span 1 4");
         
-        c.anchor = GridBagConstraints.WEST;
-        c.weightx = 1.0;
-        c.gridwidth = 2;
-        c.gridx = 1;
-        c.gridy = 9;
-        entityPanel.add(entityStudioTextField, c);
+        for (JSpinner entitySizeSpinner : entitySizeSpinners)
+            entitySizeSpinner.setSize(new Dimension(20, entitySizeSpinner.getPreferredSize().height));
+        group3.add(new JLabel("Size:"));
+        group3.add(entitySizeCheckBox);
+        group3.add(new JLabel("X1:"), "split 6");
+        group3.add(entitySizeSpinners[0]);
+        group3.add(new JLabel("Y1:"));
+        group3.add(entitySizeSpinners[1]);
+        group3.add(new JLabel("Z1:"));
+        group3.add(entitySizeSpinners[2]);
+        group3.add(new JLabel("X2:"), "cell 2 2, split 6");
+        group3.add(entitySizeSpinners[3]);
+        group3.add(new JLabel("Y2:"));
+        group3.add(entitySizeSpinners[4]);
+        group3.add(new JLabel("Z2:"));
+        group3.add(entitySizeSpinners[5]);
+
+        group3.add(new JLabel("Color:"));
+        group3.add(entityColorCheckBox);
+        group3.add(entityColorButton);
+        entityPanel.add(group3, "grow");
         
-        c.anchor = GridBagConstraints.EAST;
-        c.weightx = 0.0;
-        c.gridwidth = 1;
-        c.gridx = 3;
-        entityPanel.add(entityStudioBrowseButton, c);
+        JPanel group4 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 3, ltr", "[" + labelColumnWidth + "pt, right][grow][]"));
+        group4.add(new JLabel("Sprite:"));
+        group4.add(entitySpriteTextField, "grow");
+        group4.add(entitySpriteBrowseButton);
         
-        c.anchor = GridBagConstraints.WEST;
-        c.weightx = 1.0;
-        c.gridwidth = 2;
-        c.gridx = 1;
-        c.gridy = 10;
-        entityPanel.add(entityDecalCheckBox, c);
+        group4.add(new JLabel("Model:"));
+        group4.add(entityStudioTextField, "grow");
+        group4.add(entityStudioBrowseButton);
         
-        c.anchor = GridBagConstraints.NORTH;
-        c.gridwidth = 3;
-        c.gridheight = 1;
-        c.gridx = 0;
-        c.gridy = 11;
-        c.weighty = 1.0;
-        entityPanel.add(new JPanel(null), c);
+        group4.add(new JLabel("Decal:"));
+        group4.add(entityDecalCheckBox);
+        entityPanel.add(group4, "grow");
     }
     
-    private JPanel createJackFeaturesPanel() {
-        JPanel jackFeaturesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        jackFeaturesPanel.add(jackFeaturesCheckBox);
+    private void enableToolTips(boolean enabled) {
+        JComponent[] components = {
+            entityNameTextField,
+            entityDescriptionTextField,
+            entityURLTextField,
+            entityInheritsTextField,
+            entityFlagsCheckBoxes[0],
+            entityFlagsCheckBoxes[1],
+            entityFlagsCheckBoxes[2],
+            entityFlagsCheckBoxes[3],
+            entitySizeCheckBox,
+            entityColorCheckBox,
+            entitySpriteTextField,
+            entityStudioTextField,
+            entityDecalCheckBox
+        };
         
-        jackFeaturesCheckBox.setHorizontalAlignment(SwingConstants.LEFT);
-        jackFeaturesCheckBox.setSelected(true);
+        if (!enabled) {
+            for (JComponent component : components)
+                component.setToolTipText(null);
+            return;
+        }
+        String[] toolTips = {
+            "Classname of the entity.",
+            "Description visible in the entity's help window.",
+            "URL to the documentation, shown as <a href=\"#\">Read more...</a> in the entity's help window.",
+            "Base classes that the entity inherits properties from.",
+            "Renders an arrow in the 3D view indicating the entity angles.",
+            "Renders the entity as an octahedron instead of a cuboid.<br>Also renders in the 3D view if no model or sprite present.",
+            "Allows the entity to be hidden with <b>View > Hide Paths</b>,<br>even if classname is not prefixed with <coAde>path_</code>.",
+            "Allows the entity to be hidden with <b>View > Hide Items</b>,<br>even if classname is not prefixed with <code>item_</code>.",
+            "Sets the entity size. Each set of coordinates represent opposite vertices of a cuboid.",
+            "Sets the entity wireframe color in 2D views,<br>and 3D view if no model or sprite present.",
+            "Path to the sprite.",
+            "Path to the model. In J.A.C.K, this supports formats such as BSP, MD2, MD3, etc.",
+            "Renders decals on nearby surfaces in the 3D view.<br>This requires a <code>texture</code> keyvalue to work."
+        };
         
-        return jackFeaturesPanel;
+        for (int i = 0; i < components.length; i++)
+            components[i].setToolTipText("<html>" + toolTips[i] + "</html>");
+    }
+    
+    private JPanel createJackPanel() {
+        JPanel jackPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        jackCheckBox.setHorizontalAlignment(SwingConstants.LEFT);
+        jackPanel.add(jackCheckBox);
+        
+        return jackPanel;
     }
     
     private JPanel createStatusPanel() {
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        statusPanel.add(statusLabel);
-        
         statusLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        statusPanel.add(statusLabel);
         
         return statusPanel;
     }
