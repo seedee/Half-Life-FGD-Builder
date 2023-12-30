@@ -10,5 +10,17 @@
         <maven.compiler.target>17</maven.compiler.target>
         <exec.mainClass>com.seedee.fgdbuilder.FGDBuilder</exec.mainClass>
     </properties>
-    <name>Half-Life-FGD-Builder</name>
+    <name>Half-Life FGD Builder</name>
+    <dependencies>
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.2.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.miglayout</groupId>
+            <artifactId>miglayout-swing</artifactId>
+            <version>11.2</version>
+        </dependency>
+    </dependencies>
 </project>
