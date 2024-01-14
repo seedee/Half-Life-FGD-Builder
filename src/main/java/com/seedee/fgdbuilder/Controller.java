@@ -4,10 +4,17 @@
  */
 package com.seedee.fgdbuilder;
 
+import com.bric.colorpicker.models.ColorModel;
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.FlatLightLaf;
+import java.awt.Color;
 import java.awt.Desktop;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -16,17 +23,22 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.regex.Matcher;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
-import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.JRadioButton;
+import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
@@ -36,47 +48,68 @@ import javax.swing.filechooser.FileNameExtensionFilter;
  *
  * @author cdani
  */
-public class EventHandler {
+public class Controller {
     
     private static final String FILE_EXTENSION = "fgd";
     private static final URI[] URIS;
-    
-    private final FGDBuilder fgdBuilder;
-    private final EntityManager entityManager;
-    
     static {
         try {
             URIS = new URI[] {
                 new URI("https://developer.valvesoftware.com/wiki/FGD"),
-                new URI("https://github.com/seedee/Half-Life-FGD-Builder/issues"),
-                new URI("https://github.com/seedee/Half-Life-FGD-Builder/discussions")
+                new URI("https://github.com/seedee/Half-Life-FGD-Builder/issues/new?assignees=seedee&labels=bug&projects=&template=bug_report.md&title=BUG"),
+                new URI("https://github.com/seedee/Half-Life-FGD-Builder/issues/new?assignees=seedee&labels=enhancement&projects=&template=feature_request.md&title=%5BREQUEST%5D")
             };
         }
         catch (final URISyntaxException e) {
             throw new RuntimeException("Error initializing URIs", e);
         }
     }
+    private final MainView mainView;
+    private OptionsView optionsView;
+    private final Model model;
     
-    public EventHandler(FGDBuilder fgdBuilder, EntityManager entityManager) {
-        this.fgdBuilder = fgdBuilder;
-        this.entityManager = entityManager;
-        initializeEventListeners();
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                Model model = new Model();
+                FlatLaf lookAndFeel;
+                
+                switch(model.getLookAndFeel()) {
+                    case DARK -> lookAndFeel = new FlatDarkLaf();
+                    default -> lookAndFeel = new FlatLightLaf();
+                }
+                Color accentColor = model.getAccentColor();
+                String accentColorHex = String.format("#%02x%02x%02x", accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue());  
+                lookAndFeel.setExtraDefaults(Collections.singletonMap("@accentColor", accentColorHex));
+                FlatLaf.setup(lookAndFeel);
+                MainView mainView = new MainView();
+                new Controller(model, mainView);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
     
-    private void initializeEventListeners() {
-        fgdBuilder.addLoadListener(this::loadEventHandler);
-        fgdBuilder.addReloadListener(this::reloadEventHandler);
-        fgdBuilder.addCloseListener(this::closeEventHandler);
-        fgdBuilder.addExitListener(this::exitEventHandler);
-        fgdBuilder.addOptionsListener(this::optionsEventHandler);
-        fgdBuilder.addLogListener(this::logEventHandler);
-        fgdBuilder.addVdcListener(this::vdcEventHandler);
-        fgdBuilder.addBugReportListener(this::bugReportEventHandler);
-        fgdBuilder.addFeedbackListener(this::feedbackEventHandler);
-        fgdBuilder.addAboutListener(this::aboutEventHandler);
-        fgdBuilder.addEntityListTabListener(this::entityListTabEventHandler);
-        fgdBuilder.addEntityListListener(this::entityListEventHandler);
-        fgdBuilder.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
+    public Controller(Model model, MainView mainView) {
+        this.model = model;
+        this.mainView = mainView;
+        this.mainView.enableToolTips(model.hasToolTips());
+        this.mainView.setToolTipsDelay(model.getToolTipsDelay());
+        
+        this.mainView.addLoadListener(this::loadEventHandler);
+        this.mainView.addReloadListener(this::reloadEventHandler);
+        this.mainView.addCloseListener(this::closeEventHandler);
+        this.mainView.addExitListener(this::exitEventHandler);
+        this.mainView.addOptionsListener(this::optionsEventHandler);
+        this.mainView.addLogListener(this::logEventHandler);
+        this.mainView.addVdcListener(this::vdcEventHandler);
+        this.mainView.addBugReportListener(this::bugReportEventHandler);
+        this.mainView.addFeedbackListener(this::feedbackEventHandler);
+        this.mainView.addAboutListener(this::aboutEventHandler);
+        this.mainView.addEntityListTabListener(this::entityListTabEventHandler);
+        this.mainView.addEntityListListener(this::entityListEventHandler);
+        this.mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
     }
     
     private void loadEventHandler(ActionEvent e) {
@@ -89,13 +122,13 @@ public class EventHandler {
             fileChooser.setFileFilter(filter);
             fileChooser.setCurrentDirectory(new File("C:\\Program Files (x86)\\Steam\\steamapps\\common\\Half-Life\\cstrike"));
 
-            if (fgdBuilder.showFileChooserOpenDialog(fileChooser) == JFileChooser.APPROVE_OPTION) {
+            if (mainView.showFileChooserOpenDialog(fileChooser) == JFileChooser.APPROVE_OPTION) {
                 if (!fileChooser.getSelectedFile().getName().endsWith("." + FILE_EXTENSION)) {
-                    entityManager.setFgdFile(null);
+                    model.setFgdFile(null);
                     showFileError();
                     return;
                 }
-                entityManager.setFgdFile(fileChooser.getSelectedFile());
+                model.setFgdFile(fileChooser.getSelectedFile());
                 parseEntities(false);
             }
         }
@@ -107,29 +140,30 @@ public class EventHandler {
     private void reloadEventHandler(ActionEvent e) {
         if (!(e.getSource() instanceof JMenuItem))
             return;
-        if (entityManager.getFgdFile() != null) {
-            if (entityManager.getFgdFile().getName().endsWith("." + FILE_EXTENSION))
+        if (model.getFgdFile() != null) {
+            if (model.getFgdFile().getName().endsWith("." + FILE_EXTENSION))
                 parseEntities(true);
             else {
-                entityManager.setFgdFile(null);
+                model.setFgdFile(null);
                 showFileError();
             }
         }
     }
     
     private void showFileError() {
-        fgdBuilder.setStatusLabel("File must be a Forge Game Data (*." + FILE_EXTENSION + ") file");
+        mainView.setStatusLabel("File must be a Forge Game Data (*." + FILE_EXTENSION + ") file");
         JOptionPane.showMessageDialog(null, "File must be a Forge Game Data (*." + FILE_EXTENSION + ") file", "Warning", JOptionPane.WARNING_MESSAGE);
     }
     
     private void closeEventHandler(ActionEvent e) {
         if (!(e.getSource() instanceof JMenuItem))
             return;
-        entityManager.clearEntityList();
-        fgdBuilder.clearEntityListModel();
-        fgdBuilder.enableFileMenuItems(false);
-        fgdBuilder.setStatusLabel("Closed " + entityManager.getFgdFile());
-        entityManager.setFgdFile(null);
+        model.clearEntityList();
+        mainView.clearEntityListModel();
+        mainView.enableToolTips(false);
+        mainView.enableFileMenuItems(false);
+        mainView.setStatusLabel("Closed " + model.getFgdFile());
+        model.setFgdFile(null);
     }
     
     private void exitEventHandler(ActionEvent e) {
@@ -141,7 +175,89 @@ public class EventHandler {
     private void optionsEventHandler(ActionEvent e) {
         if (!(e.getSource() instanceof JMenuItem))
             return;
-        System.out.println("Options");
+        optionsView = OptionsView.getInstance(mainView.getFrameOffset());
+        optionsView.centerFrame(mainView.getFrameOffset()); //Centers if options is already open
+        optionsView.setToolTipsCheckBox(model.hasToolTips());
+        optionsView.setToolTipsDelaySpinner(model.getToolTipsDelay());
+        optionsView.enableToolTipsDelay(model.hasToolTips());
+        optionsView.setThemeRadioButton(model.getLookAndFeel());
+        optionsView.setAccentColor(model.getAccentColor());
+        
+        optionsView.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                optionsView.setInstance(null);
+            }
+        });
+        optionsView.addToolTipsListener(this::optionsToolTipsEventHandler);
+        optionsView.addToolTipsDelayListener(this::optionsToolTipsDelayEventHandler);
+        optionsView.addThemeListener(this::optionsThemeEventHandler);
+        optionsView.addColorListener(this::optionsColorEventHandler);
+        optionsView.addOKListener(this::optionsOKEventHandler);
+        optionsView.addCancelListener(this::optionsCancelEventHandler);
+    }
+    
+    private void optionsToolTipsEventHandler(ItemEvent e) {
+        if (!(e.getSource() instanceof JCheckBox))
+            return;
+        model.proposeNewHasToolTips(e.getStateChange() == ItemEvent.SELECTED);
+        optionsView.enableToolTipsDelay(e.getStateChange() == ItemEvent.SELECTED);
+    }
+    
+    private void optionsToolTipsDelayEventHandler(ChangeEvent e) {
+        if (!(e.getSource() instanceof JSpinner))
+            return;
+        JSpinner toolTipsDelaySpinner = (JSpinner) e.getSource();
+        model.proposeNewToolTipsDelay((int) toolTipsDelaySpinner.getValue());
+    }
+    
+    private void optionsThemeEventHandler(ItemEvent e) {
+        if (!(e.getSource() instanceof JRadioButton))
+            return;
+        if (e.getStateChange() != ItemEvent.SELECTED)
+            return;
+        JRadioButton themeRadioButton = (JRadioButton) e.getSource();
+        
+        switch (themeRadioButton.getText()) {
+            case "Light" -> model.proposeNewLookAndFeel(Model.LookAndFeel.LIGHT);
+            case "Dark" -> model.proposeNewLookAndFeel(Model.LookAndFeel.DARK);
+        }
+    }
+    
+    private void optionsColorEventHandler(ColorModel e) {
+        model.proposeNewAccentColor(e.getColor());
+    }
+    
+    private void optionsOKEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        model.saveOptions(model.getProposedHasToolTips(), model.getProposedToolTipsDelay(), model.getProposedLookAndFeel(), model.getProposedAccentColor());
+        mainView.enableToolTips(model.hasToolTips());
+        mainView.setToolTipsDelay(model.getToolTipsDelay());
+        FlatLaf lookAndFeel;
+        
+        switch(model.getLookAndFeel()) {
+            case DARK -> lookAndFeel = new FlatDarkLaf();
+            default -> lookAndFeel = new FlatLightLaf();
+        }
+        Color accentColor = model.getAccentColor();
+        String accentColorHex = String.format("#%02x%02x%02x", accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue());  
+        lookAndFeel.setExtraDefaults(Collections.singletonMap("@accentColor", accentColorHex));
+        FlatLaf.setup(lookAndFeel);
+        FlatLaf.updateUI();
+        
+        optionsView.closeFrame();
+    }
+    
+    private void optionsCancelEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        model.proposeNewHasToolTips(model.hasToolTips());
+        model.proposeNewToolTipsDelay(model.getToolTipsDelay());
+        model.proposeNewLookAndFeel(model.getLookAndFeel());
+        model.proposeNewAccentColor(model.getAccentColor());
+        
+        optionsView.closeFrame();
     }
     
     private void logEventHandler(ActionEvent e) {
@@ -168,15 +284,14 @@ public class EventHandler {
         openURL(URIS[2]);
     }
     
-    
     private void openURL(URI uri) {
         try {
             if (!Desktop.isDesktopSupported()) { //Todo: implement linux support
-                fgdBuilder.setStatusLabel("Unable to open URL: Desktop API is not supported on the current platform");
+                mainView.setStatusLabel("Unable to open URL: Desktop API is not supported on the current platform");
                 return;
             }
             if (!Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                fgdBuilder.setStatusLabel("Unable to open URL: Browsing is not supported on this platform");
+                mainView.setStatusLabel("Unable to open URL: Browsing is not supported on this platform");
                 return;
             }
             Desktop.getDesktop().browse(uri);
@@ -200,7 +315,7 @@ public class EventHandler {
 
         if (!refreshEntityListTab(newTabIndex))
             return;
-        JSplitPane splitPane = fgdBuilder.getSplitPane();
+        JSplitPane splitPane = mainView.getSplitPane();
         int previousTabIndex = 0;
         
         for (int i = 0; i < entityListTabbedPane.getTabCount(); i++) {
@@ -223,35 +338,37 @@ public class EventHandler {
         JList<Entity> entityList = (JList<Entity>) e.getSource();
         
         if (entityList.getSelectedIndices().length != 1) {
-            fgdBuilder.enableEditingPanels(false);
+            mainView.enableEditingPanels(false);
+            mainView.enableToolTips(false);
             return;
         }
-        fgdBuilder.enableEditingPanels(true);
+        mainView.enableEditingPanels(true);
+        mainView.enableToolTips(model.hasToolTips());
         Entity selectedEntity = entityList.getSelectedValue();
-        fgdBuilder.setEntityName(selectedEntity.toString());
-        fgdBuilder.setEntityDescription(selectedEntity.getDescription());
-        fgdBuilder.setEntityURL(selectedEntity.getURL());
-        fgdBuilder.setEntityInherits(selectedEntity.getInherits());
-        fgdBuilder.setEntityFlags(selectedEntity.getFlags());
-        fgdBuilder.setEntitySize(selectedEntity.hasSize(), selectedEntity.getSize());
-        fgdBuilder.setEntityColor(selectedEntity.hasColor(), selectedEntity.getColor());
-        fgdBuilder.setEntitySprite(selectedEntity.getSprite());
-        fgdBuilder.setEntityDecal(selectedEntity.isDecal());
-        fgdBuilder.setEntityStudio(selectedEntity.getStudio());
+        mainView.setEntityName(selectedEntity.toString());
+        mainView.setEntityDescription(selectedEntity.getDescription());
+        mainView.setEntityURL(selectedEntity.getURL());
+        mainView.setEntityInherits(selectedEntity.getInherits());
+        mainView.setEntityFlags(selectedEntity.getFlags());
+        mainView.setEntitySize(selectedEntity.hasSize(), selectedEntity.getSize());
+        mainView.setEntityColor(selectedEntity.hasColor(), selectedEntity.getColor());
+        mainView.setEntitySprite(selectedEntity.getSprite());
+        mainView.setEntityDecal(selectedEntity.isDecal());
+        mainView.setEntityStudio(selectedEntity.getStudio());
     }
     
     private void jackCheckBoxEventHandler(ItemEvent e) {
         if (!(e.getSource() instanceof JCheckBox))
             return;
         if (e.getStateChange() != ItemEvent.SELECTED)
-            fgdBuilder.enableJackFeatures(false);
+            mainView.enableJackFeatures(false);
         else {
-            ItemListener[] listeners = fgdBuilder.getJackCheckBoxListeners();
+            ItemListener[] listeners = mainView.getJackCheckBoxListeners();
         
             for (ItemListener listener : listeners) {
-                fgdBuilder.removeJackCheckBoxListener(listener);
+                mainView.removeJackCheckBoxListener(listener);
             }
-            int result = fgdBuilder.showConfirmDialog(
+            int result = mainView.showConfirmDialog(
                     "Saving FGDs with this option will break compatibility with Valve Hammer Editor.",
                     "Enable J.A.C.K. Features",
                     JOptionPane.OK_CANCEL_OPTION,
@@ -261,24 +378,25 @@ public class EventHandler {
             
             if (result != JOptionPane.OK_OPTION) {
                 jackCheckBox.setSelected(false);
-                fgdBuilder.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
+                mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
                 return;
             }
             jackCheckBox.setSelected(true);
-            fgdBuilder.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
-            fgdBuilder.enableJackFeatures(true);
+            mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
+            mainView.enableJackFeatures(true);
         }
     }
     
     private void parseEntities(boolean reloading) {
-        entityManager.clearEntityList();
-        fgdBuilder.clearEntityListModel();
+        model.clearEntityList();
+        mainView.clearEntityListModel();
+        mainView.enableToolTips(false);
         
-        try (BufferedReader reader = new BufferedReader(new FileReader(entityManager.getFgdFile()))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(model.getFgdFile()))) {
             String line;
             StringBuilder entityProperties = new StringBuilder();
-            Matcher entClassMatcher = entityManager.getEntityPattern(0).matcher("");
-            Matcher nameMatcher = entityManager.getEntityPattern(1).matcher("");
+            Matcher entClassMatcher = model.getEntityPattern(0).matcher("");
+            Matcher nameMatcher = model.getEntityPattern(1).matcher("");
 
             while ((line = reader.readLine()) != null) {
                 entClassMatcher.reset(line.trim());
@@ -298,7 +416,6 @@ public class EventHandler {
                     String propertyLine = reader.readLine();
                     
                     if (propertyLine == null) { //If EOF before properties block
-                        System.out.println("======== Syntax error in properties for " + nameMatcher.group(1).trim() + ", discarding");
                         createEntity(line.trim(), null);
                         entityProperties.setLength(0);
                         reader.reset();
@@ -307,7 +424,6 @@ public class EventHandler {
                     entClassMatcher.reset(propertyLine.trim());
                     
                     if (entClassMatcher.find()) { //If new entity found before syntaxIndex is 0
-                        System.out.println("======== Syntax error in properties for " + nameMatcher.group(1).trim() + ", discarding");
                         createEntity(line.trim(), null);
                         entityProperties.setLength(0);
                         reader.reset();
@@ -334,23 +450,22 @@ public class EventHandler {
                     }
                 }
             }
-            if (!refreshEntityListTab(fgdBuilder.getCurrentEntityListTab()))
-                return;
-            fgdBuilder.enableFileMenuItems(true);
+            refreshEntityListTab(mainView.getCurrentEntityListTab());
+            mainView.enableFileMenuItems(true);
             
             if (reloading)
-                fgdBuilder.setStatusLabel("Reloaded " + entityManager.getFgdFile());
+                mainView.setStatusLabel("Reloaded " + model.getFgdFile());
             else
-                fgdBuilder.setStatusLabel("Loaded " + entityManager.getFgdFile());
+                mainView.setStatusLabel("Loaded " + model.getFgdFile());
         }
         catch (IOException e) {
-            entityManager.setFgdFile(null);
-            fgdBuilder.enableFileMenuItems(false);
+            model.setFgdFile(null);
+            mainView.enableFileMenuItems(false);
             
             if (reloading)
-                fgdBuilder.setStatusLabel("Failed to reload " + entityManager.getFgdFile());
+                mainView.setStatusLabel("Failed to reload " + model.getFgdFile());
             else
-                fgdBuilder.setStatusLabel("Failed to load " + entityManager.getFgdFile());
+                mainView.setStatusLabel("Failed to load " + model.getFgdFile());
             e.printStackTrace();
         }
     }
@@ -362,7 +477,7 @@ public class EventHandler {
         entityProperties.delete(entityProperties.lastIndexOf("\n"), entityProperties.length());
         LinkedHashMap<String[], ArrayList<String[]>> entityPropertyMap = new LinkedHashMap<>();
         ArrayList<String> propertyLines = new ArrayList<>(Arrays.asList(entityProperties.toString().split("\n")));
-        Matcher keyMatcher = entityManager.getEntityPropertyPattern(0).matcher("");
+        Matcher keyMatcher = model.getEntityPropertyPattern(0).matcher("");
         
         for (int i = 0; i < propertyLines.size(); i++) {
             String[] propertyParts = splitPropertyLines(propertyLines.get(i));
@@ -462,31 +577,31 @@ public class EventHandler {
     }
     
     private void createEntity(String entityString, LinkedHashMap<String[], ArrayList<String[]>> entityPropertyMap) {
-        Matcher entClassMatcher = entityManager.getEntityPattern(0).matcher(entityString);
-        Matcher nameMatcher = entityManager.getEntityPattern(1).matcher(entityString);
+        Matcher entClassMatcher = model.getEntityPattern(0).matcher(entityString);
+        Matcher nameMatcher = model.getEntityPattern(1).matcher(entityString);
         
         if (!entClassMatcher.find() || !nameMatcher.find())
             return;
         
         Entity entity;
         switch (entClassMatcher.group(1)) {
-            case "@BaseClass" -> entity = new Entity(EntityType.BASECLASS, nameMatcher.group(1).trim());
-            case "@SolidClass" -> entity = new Entity(EntityType.SOLIDCLASS, nameMatcher.group(1).trim());
-            case "@PointClass" -> entity = new Entity(EntityType.POINTCLASS, nameMatcher.group(1).trim());
+            case "@BaseClass" -> entity = new Entity(Entity.Class.BASECLASS, nameMatcher.group(1).trim());
+            case "@SolidClass" -> entity = new Entity(Entity.Class.SOLIDCLASS, nameMatcher.group(1).trim());
+            case "@PointClass" -> entity = new Entity(Entity.Class.POINTCLASS, nameMatcher.group(1).trim());
             default -> { return; }
         }
-        setEntityDescriptionAndURL(entity, entityManager.getEntityPattern(2).matcher(entityString));
-        setEntityInherits(entity, entityManager.getEntityPattern(3).matcher(entityString));
-        setEntityFlags(entity, entityManager.getEntityPattern(4).matcher(entityString));
-        setEntitySize(entity, entityManager.getEntityPattern(5).matcher(entityString));
-        setEntityColor(entity, entityManager.getEntityPattern(6).matcher(entityString));
-        setEntitySprite(entity, entityManager.getEntityPattern(7).matcher(entityString));
-        setEntityDecal(entity, entityManager.getEntityPattern(8).matcher(entityString));
-        setEntityStudio(entity, entityManager.getEntityPattern(9).matcher(entityString));
+        setEntityDescriptionAndURL(entity, model.getEntityPattern(2).matcher(entityString));
+        setEntityInherits(entity, model.getEntityPattern(3).matcher(entityString));
+        setEntityFlags(entity, model.getEntityPattern(4).matcher(entityString));
+        setEntitySize(entity, model.getEntityPattern(5).matcher(entityString));
+        setEntityColor(entity, model.getEntityPattern(6).matcher(entityString));
+        setEntitySprite(entity, model.getEntityPattern(7).matcher(entityString));
+        setEntityDecal(entity, model.getEntityPattern(8).matcher(entityString));
+        setEntityStudio(entity, model.getEntityPattern(9).matcher(entityString));
         
         if (entityPropertyMap != null)
             entity.setProperties(entityPropertyMap);
-        entityManager.addEntity(entity);
+        model.addEntity(entity);
     }
     
     private void setEntityDescriptionAndURL(Entity entity, Matcher matcher) {
@@ -556,21 +671,20 @@ public class EventHandler {
     }
     
     private boolean refreshEntityListTab(int tabIndex) {
-        ListSelectionListener[] listeners = fgdBuilder.getEntityListListeners();
+        ListSelectionListener[] listeners = mainView.getEntityListListeners();
         
-        for (ListSelectionListener listener : listeners) {
-            fgdBuilder.removeEntityListListener(listener);
-        }
+        for (ListSelectionListener listener : listeners)
+            mainView.removeEntityListListener(listener);
         switch (tabIndex) {
-            case 0 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.BASECLASS));
-            case 1 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.SOLIDCLASS));
-            case 2 -> fgdBuilder.updateEntityListModel(entityManager.getEntityList(EntityType.POINTCLASS));
+            case 0 -> mainView.updateEntityListModel(model.getEntityList(Entity.Class.BASECLASS));
+            case 1 -> mainView.updateEntityListModel(model.getEntityList(Entity.Class.SOLIDCLASS));
+            case 2 -> mainView.updateEntityListModel(model.getEntityList(Entity.Class.POINTCLASS));
             default -> {
-                fgdBuilder.addEntityListListener(this::entityListEventHandler);
+                mainView.addEntityListListener(this::entityListEventHandler);
                 return false;
             }
         }
-        fgdBuilder.addEntityListListener(this::entityListEventHandler);
+        mainView.addEntityListListener(this::entityListEventHandler);
         return true;
     }
 }
