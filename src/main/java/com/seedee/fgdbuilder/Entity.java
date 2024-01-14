@@ -14,8 +14,13 @@ import java.util.Map;
  * @author cdani
  */
 public class Entity {
-
-    private EntityType entClass; // ^@.*?Class
+    
+    enum Class {
+        BASECLASS,
+        SOLIDCLASS,
+        POINTCLASS;
+    }
+    private Class entClass; // ^@.*?Class
     private String name; // =\s*([^:|\n\]]+)
     private String description; // :\s*"([^"\[]*)
     private String url;
@@ -30,18 +35,18 @@ public class Entity {
     private String studio; // studio\("*([^"]*)"*\)
     private LinkedHashMap<String[], ArrayList<String[]>> propertyMap;
     
-    public Entity(EntityType entClass, String name) {
+    public Entity(Class entClass, String name) {
         this.entClass = entClass;
         this.name = name;
         this.size = new int[][] { {-8, -8, -8}, {8, 8, 8} };
         this.color = new short[] { 220, 30, 220 };
     }
     
-    public void setClass(EntityType entClass) {
+    public void setClass(Class entClass) {
         this.entClass = entClass;
     }
     
-    public EntityType getEntityClass() {
+    public Class getEntityClass() {
         return entClass;
     }
     
