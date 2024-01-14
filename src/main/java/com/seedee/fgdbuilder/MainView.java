@@ -5,32 +5,23 @@
 
 package com.seedee.fgdbuilder;
 
-import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.FlatLaf;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-import java.awt.Insets;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JColorChooser;
 import javax.swing.JComponent;
 import javax.swing.JFileChooser;
-import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -41,7 +32,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
-import javax.swing.JSpinner.DefaultEditor;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
@@ -51,20 +41,21 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
-import javax.swing.border.EmptyBorder;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.plaf.basic.BasicLookAndFeel;
 import net.miginfocom.swing.MigLayout;
 
 /**
  *
  * @author cdani
  */
-public class FGDBuilder {
+public class MainView {
 
-    private static final String APP_TITLE = "Half-Life FGD Builder";
+    private static final String FRAME_TITLE = "Half-Life FGD Builder";
     
-    private final JFrame mainFrame = new JFrame(APP_TITLE);
+    private final JFrame mainFrame = new JFrame(FRAME_TITLE);
             
     private JMenuItem loadMenuItem;
     private JMenuItem reloadMenuItem;
@@ -87,8 +78,8 @@ public class FGDBuilder {
     
     private final JTabbedPane entityTabbedPane = new JTabbedPane();
     
-    private boolean editingPanels;
-    private final JPanel entityPanel = new JPanel(new MigLayout("insets 0, gap 0, wrap 1, ltr", "[grow]"));
+    private boolean editingPanelsEnabled;
+    private final JPanel entityPanel = new JPanel(new MigLayout("insets 0, gap 0, wrap 1, ltr", "[fill, grow]"));
     private final JTextField entityNameTextField = new JTextField();
     private final JTextField entityDescriptionTextField = new JTextField();
     private final JTextField entityURLTextField = new JTextField();
@@ -98,6 +89,8 @@ public class FGDBuilder {
     private final JButton entityInheritsRemoveButton = new JButton("Remove");
     private final DefaultListModel<String> entityInheritsListModel = new DefaultListModel();
     private final JList<String> entityInheritsList = new JList<>(entityInheritsListModel);
+    
+    private final JPanel cuboidPanel = new JPanel();
     
     private final JCheckBox[] entityFlagsCheckBoxes = {
         new JCheckBox("Angle"),
@@ -128,39 +121,22 @@ public class FGDBuilder {
     private final JTextField entityStudioTextField = new JTextField("");
     private final JButton entityStudioBrowseButton = new JButton("Browse...");
     
-    private boolean jackFeatures;
+    private boolean jackFeaturesEnabled;
     private final JCheckBox jackCheckBox = new JCheckBox("Enable J.A.C.K. Features");
     
     private final JLabel statusLabel = new JLabel("Ready");
-    
-    public static void main(String[] args) {
-        FlatLightLaf.setup();
-        
-        SwingUtilities.invokeLater(() -> {
-            try {
-                FGDBuilder fgdBuilder = new FGDBuilder();
-                EntityManager entityManager = new EntityManager();
-                new EventHandler(fgdBuilder, entityManager);
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
 
-    public FGDBuilder() {
+    public MainView() {
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        mainFrame.setSize(800,600);
+        mainFrame.setPreferredSize(new Dimension(800, 600));
         mainFrame.setLayout(new BorderLayout());
         
         mainFrame.setJMenuBar(createMenuBar());
         
-        createEntityListTabs(); 
+        createEntityListTabs();
         mainFrame.add(entityListTabbedPane, BorderLayout.CENTER);
-        
         createEntityTabs();
         createEntityPanel();
-        ToolTipManager.sharedInstance().setInitialDelay(100);
         rightPanel.add(entityTabbedPane, BorderLayout.CENTER);
         enableEditingPanels(false);
         
@@ -168,10 +144,23 @@ public class FGDBuilder {
         
         mainFrame.add(createStatusPanel(), BorderLayout.SOUTH);
         
+        setToolTips();
+        ToolTipManager.sharedInstance().setReshowDelay(0);
+        enableToolTips(false);
+        
+        mainFrame.pack();
         mainFrame.setLocationRelativeTo(null);
         mainFrame.validate();
         mainFrame.repaint();
         mainFrame.setVisible(true);
+    }
+    
+    public int[] getFrameOffset() {
+        int[] offset = {
+            mainFrame.getX() + mainFrame.getWidth() / 2,
+            mainFrame.getY() + mainFrame.getHeight() / 2
+        };
+        return offset;
     }
     
     public int showFileChooserOpenDialog (JFileChooser fileChooser) {
@@ -206,7 +195,7 @@ public class FGDBuilder {
     public void addOptionsListener(ActionListener listener) {
         optionsMenuItem.addActionListener(listener);
     }
-    
+        
     public void addLogListener(ActionListener listener) {
         logMenuItem.addActionListener(listener);
     }
@@ -268,9 +257,8 @@ public class FGDBuilder {
             return;
         clearEntityListModel();
         
-        for (Entity entity : list) {
+        for (Entity entity : list)
             entityListModel.addElement(entity);
-        }
     }
     
     public void clearEntityListModel() {
@@ -280,10 +268,9 @@ public class FGDBuilder {
     }
     
     public void enableEditingPanels(boolean enabled) {
-        editingPanels = enabled;
+        editingPanelsEnabled = enabled;
         setEnabledChildren(entityPanel, enabled);
-        enableJackFeatures(jackFeatures);
-        enableToolTips(enabled);
+        enableJackFeatures(jackFeaturesEnabled);
     }
     
     public void setEnabledChildren(Container container, boolean enabled) {
@@ -312,15 +299,23 @@ public class FGDBuilder {
     }
     
     public void enableJackFeatures(boolean enabled) {
-        jackFeatures = enabled;
+        jackFeaturesEnabled = enabled;
         
-        if (!editingPanels)
+        if (!editingPanelsEnabled)
             return;
         entityURLTextField.setEnabled(enabled);
         
         for (JCheckBox entityFlagsCheckBox : entityFlagsCheckBoxes) {
             entityFlagsCheckBox.setEnabled(enabled);
         }
+    }
+    
+    public void enableToolTips(boolean hasToolTips) {
+        ToolTipManager.sharedInstance().setEnabled(editingPanelsEnabled && hasToolTips);
+    }
+    
+    public void setToolTipsDelay(int toolTipsDelay) {
+        ToolTipManager.sharedInstance().setInitialDelay(toolTipsDelay);
     }
     
     public void setEntityName(String name) {
@@ -444,11 +439,11 @@ public class FGDBuilder {
         bugReportMenuItem = createMenuItem("Report a Bug", KeyEvent.VK_R, true);
         helpMenu.add(bugReportMenuItem);
         
-        feedbackMenuItem = createMenuItem("Send Feedback", KeyEvent.VK_S, true);
+        feedbackMenuItem = createMenuItem("Request a Feature", KeyEvent.VK_S, true);
         helpMenu.add(feedbackMenuItem);
         helpMenu.addSeparator();
         
-        aboutMenuItem = createMenuItem("About " + APP_TITLE, KeyEvent.VK_A, true);
+        aboutMenuItem = createMenuItem("About " + FRAME_TITLE, KeyEvent.VK_A, true);
         helpMenu.add(aboutMenuItem);
         
         return helpMenu;
@@ -505,7 +500,7 @@ public class FGDBuilder {
         group3.add(entityFlagsCheckBoxes[1]);
         group3.add(entityFlagsCheckBoxes[2]);
         group3.add(entityFlagsCheckBoxes[3]);
-        group3.add(new JPanel(), "span 1 4");
+        group3.add(cuboidPanel, "span 1 4");
         
         for (JSpinner entitySizeSpinner : entitySizeSpinners)
             entitySizeSpinner.setSize(new Dimension(20, entitySizeSpinner.getPreferredSize().height));
@@ -523,7 +518,7 @@ public class FGDBuilder {
         group3.add(entitySizeSpinners[4]);
         group3.add(new JLabel("Z2:"));
         group3.add(entitySizeSpinners[5]);
-
+        
         group3.add(new JLabel("Color:"));
         group3.add(entityColorCheckBox);
         group3.add(entityColorButton);
@@ -543,7 +538,7 @@ public class FGDBuilder {
         entityPanel.add(group4, "grow");
     }
     
-    private void enableToolTips(boolean enabled) {
+    private void setToolTips() {
         JComponent[] components = {
             entityNameTextField,
             entityDescriptionTextField,
@@ -560,11 +555,6 @@ public class FGDBuilder {
             entityDecalCheckBox
         };
         
-        if (!enabled) {
-            for (JComponent component : components)
-                component.setToolTipText(null);
-            return;
-        }
         String[] toolTips = {
             "Classname of the entity.",
             "Description visible in the entity's help window.",
