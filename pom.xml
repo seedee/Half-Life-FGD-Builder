@@ -8,7 +8,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <exec.mainClass>com.seedee.fgdbuilder.FGDBuilder</exec.mainClass>
+        <exec.mainClass>com.seedee.fgdbuilder.Controller</exec.mainClass>
     </properties>
     <name>Half-Life FGD Builder</name>
     <dependencies>
@@ -21,6 +21,11 @@
             <groupId>com.miglayout</groupId>
             <artifactId>miglayout-swing</artifactId>
             <version>11.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.drjekyll</groupId>
+            <artifactId>colorpicker</artifactId>
+            <version>1.4.5</version>
         </dependency>
     </dependencies>
 </project>
