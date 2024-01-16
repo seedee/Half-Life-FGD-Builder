@@ -158,6 +158,10 @@ public class Entity {
         this.propertyMap = propertyMap;
     }
     
+    public LinkedHashMap<String[], ArrayList<String[]>> getProperties() {
+        return propertyMap;
+    }
+    
     public void printData() {
         System.out.println("Class: " + entClass);
         System.out.println("Name: " + name);
@@ -178,27 +182,28 @@ public class Entity {
         System.out.println("Decal: " + decal);
         System.out.println("Studiomodel: " + studio);
         
-        if (propertyMap != null) {
-            for (Map.Entry<String[], ArrayList<String[]>> entry : propertyMap.entrySet()) {
-                System.out.print("-------- ");
-                String[] property = entry.getKey();
+        if (propertyMap == null) {
+            System.out.println();
+            return;
+        }
+        for (Map.Entry<String[], ArrayList<String[]>> entry : propertyMap.entrySet()) {
+            System.out.print("-------- ");
+            String[] property = entry.getKey();
+            
+            for (int i = 0; i < property.length; i++) {
+                System.out.print(property[i]);
                 
-                for (int i = 0; i < property.length; i++) {
-                    System.out.print(property[i]);
-                    
-                    if (i < property.length - 1) {
-                        System.out.print(", ");
-                    }
-                }
-                System.out.println();
-                ArrayList<String[]> propertyBody = entry.getValue();
-
-                if (propertyBody != null) {
-                    for (int i = 0; i < propertyBody.size(); i++) {
-                        System.out.println("         " + Arrays.toString(propertyBody.get(i)));
-                    }
+                if (i < property.length - 1) {
+                    System.out.print(", ");
                 }
             }
+            System.out.println();
+            ArrayList<String[]> propertyBody = entry.getValue();
+
+            if (propertyBody == null)
+                return;
+            for (int i = 0; i < propertyBody.size(); i++)
+                System.out.println("         " + Arrays.toString(propertyBody.get(i)));
         }
         System.out.println();
     }
