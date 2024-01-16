@@ -7,9 +7,6 @@ package com.seedee.fgdbuilder;
 import com.bric.colorpicker.ColorPicker;
 import com.bric.colorpicker.ColorPickerMode;
 import com.bric.colorpicker.listeners.ColorListener;
-import com.formdev.flatlaf.FlatDarkLaf;
-import com.formdev.flatlaf.FlatLaf;
-import com.formdev.flatlaf.FlatLightLaf;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.ActionListener;
@@ -25,9 +22,6 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.ChangeListener;
 import net.miginfocom.swing.MigLayout;
 
@@ -84,17 +78,6 @@ public class OptionsView {
         instance = fgdBuilderOptions;
     }
     
-    public void centerFrame(int[] offset) {
-        offset[0] -= optionsFrame.getWidth() / 2;
-        offset[1] -= optionsFrame.getHeight() / 2;
-        optionsFrame.setLocation(offset[0], offset[1]);
-        optionsFrame.requestFocus();
-    }
-    
-    public void closeFrame() {
-        optionsFrame.dispatchEvent(new WindowEvent(optionsFrame, WindowEvent.WINDOW_CLOSING));
-    }
-    
     public void addWindowListener(WindowAdapter adapter) {
         optionsFrame.addWindowListener(adapter);
     }
@@ -103,33 +86,13 @@ public class OptionsView {
         toolTipsCheckBox.addItemListener(listener);
     }
     
-    public void setToolTipsCheckBox(boolean hasToolTips) {
-        toolTipsCheckBox.setSelected(hasToolTips);
-    }
-    
     public void addToolTipsDelayListener(ChangeListener listener) {
         toolTipsDelaySpinner.addChangeListener(listener);
-    }
-    
-    public void setToolTipsDelaySpinner(int toolTipsDelay) {
-        toolTipsDelaySpinner.setValue(toolTipsDelay);
-    }
-    
-    public void enableToolTipsDelay(boolean enabled) {
-        toolTipsDelayLabel.setEnabled(enabled);
-        toolTipsDelaySpinner.setEnabled(enabled);
     }
     
     public void addThemeListener(ItemListener listener) {
         for (JRadioButton themeRadioButton : themeRadioButtons)
             themeRadioButton.addItemListener(listener);
-    }
-    
-    public void setThemeRadioButton(Model.LookAndFeel lookAndFeel) {
-        switch(lookAndFeel) {
-            case DARK -> themeRadioButtons[1].setSelected(true);
-            default -> themeRadioButtons[0].setSelected(true);
-        }
     }
     
     public void addColorListener(ColorListener listener) {
@@ -142,6 +105,37 @@ public class OptionsView {
     
     public void addCancelListener(ActionListener listener) {
         cancelButton.addActionListener(listener);
+    }
+    
+    public final void centerFrame(int[] offset) {
+        offset[0] -= optionsFrame.getWidth() / 2;
+        offset[1] -= optionsFrame.getHeight() / 2;
+        optionsFrame.setLocation(offset[0], offset[1]);
+        optionsFrame.requestFocus();
+    }
+    
+    public void closeFrame() {
+        optionsFrame.dispatchEvent(new WindowEvent(optionsFrame, WindowEvent.WINDOW_CLOSING));
+    }
+    
+    public void setToolTipsCheckBox(boolean hasToolTips) {
+        toolTipsCheckBox.setSelected(hasToolTips);
+    }
+    
+    public void setToolTipsDelaySpinner(int toolTipsDelay) {
+        toolTipsDelaySpinner.setValue(toolTipsDelay);
+    }
+    
+    public void enableToolTipsDelay(boolean enabled) {
+        toolTipsDelayLabel.setEnabled(enabled);
+        toolTipsDelaySpinner.setEnabled(enabled);
+    }
+    
+    public void setThemeRadioButton(Model.LookAndFeel lookAndFeel) {
+        switch(lookAndFeel) {
+            case DARK -> themeRadioButtons[1].setSelected(true);
+            default -> themeRadioButtons[0].setSelected(true);
+        }
     }
     
     public void setAccentColor(Color accentColor) {
