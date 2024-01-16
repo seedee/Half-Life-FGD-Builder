@@ -4,14 +4,10 @@
  */
 package com.seedee.fgdbuilder;
 
-import com.formdev.flatlaf.FlatDarkLaf;
-import com.formdev.flatlaf.FlatLaf;
-import com.formdev.flatlaf.FlatLightLaf;
 import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -60,7 +56,7 @@ public class Model {
         };
         
         entityPropertyPatterns = new Pattern[] {
-            Pattern.compile("(.+)\\((.+)\\)", Pattern.CASE_INSENSITIVE)
+            Pattern.compile("(\\w+)\\((\\w+)\\)", Pattern.CASE_INSENSITIVE)
         };
     }
     
