@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -37,8 +38,6 @@ import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
@@ -107,6 +106,9 @@ public class Controller {
         this.mainView.addBugReportListener(this::bugReportEventHandler);
         this.mainView.addFeedbackListener(this::feedbackEventHandler);
         this.mainView.addAboutListener(this::aboutEventHandler);
+        this.mainView.addAddEntityListener(this::addEntityEventHandler);
+        this.mainView.addCutEntityListener(this::cutEntityEventHandler);
+        this.mainView.addDeleteEntityListener(this::deleteEntityEventHandler);
         this.mainView.addEntityListTabListener(this::entityListTabEventHandler);
         this.mainView.addEntityListListener(this::entityListEventHandler);
         this.mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
@@ -307,6 +309,27 @@ public class Controller {
         System.out.println("About");
     }
     
+    private void addEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        createEntity();
+        refreshEntityListTab(mainView.getCurrentEntityListTab());
+        //mainView.enableFileMenuItems(true);
+        mainView.setStatusLabel("Added new Base Class entity");
+    }
+    
+    private void cutEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        System.out.println("cut");
+    }
+    
+    private void deleteEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        System.out.println("del");
+    }
+    
     private void entityListTabEventHandler(ChangeEvent e) {
         if (!(e.getSource() instanceof JTabbedPane))
             return;
@@ -345,16 +368,26 @@ public class Controller {
         mainView.enableEditingPanels(true);
         mainView.enableToolTips(model.hasToolTips());
         Entity selectedEntity = entityList.getSelectedValue();
-        mainView.setEntityName(selectedEntity.toString());
-        mainView.setEntityDescription(selectedEntity.getDescription());
-        mainView.setEntityURL(selectedEntity.getURL());
-        mainView.setEntityInherits(selectedEntity.getInherits());
-        mainView.setEntityFlags(selectedEntity.getFlags());
-        mainView.setEntitySize(selectedEntity.hasSize(), selectedEntity.getSize());
-        mainView.setEntityColor(selectedEntity.hasColor(), selectedEntity.getColor());
-        mainView.setEntitySprite(selectedEntity.getSprite());
-        mainView.setEntityDecal(selectedEntity.isDecal());
-        mainView.setEntityStudio(selectedEntity.getStudio());
+        mainView.setEntity(
+                selectedEntity.toString(),
+                selectedEntity.getDescription(),
+                selectedEntity.getURL(),
+                selectedEntity.getInherits(),
+                selectedEntity.getFlags(),
+                selectedEntity.hasSize(),
+                selectedEntity.getSize(),
+                selectedEntity.hasColor(),
+                selectedEntity.getColor(),
+                selectedEntity.getSprite(),
+                selectedEntity.isDecal(),
+                selectedEntity.getStudio());
+        LinkedHashMap<String[], ArrayList<String[]>> selectedEntityProperties = selectedEntity.getProperties();
+        
+        if (selectedEntityProperties == null) {
+            mainView.setEntityProperties(null);
+            return;
+        }
+        mainView.setEntityProperties(selectedEntityProperties.keySet().toArray(new String[0][]));
     }
     
     private void jackCheckBoxEventHandler(ItemEvent e) {
@@ -487,7 +520,7 @@ public class Controller {
             String keyName;
             String keyType;
             keyMatcher.reset(propertyParts[0]);
-
+            
             if (!keyMatcher.find())
                 continue;
             keyName = keyMatcher.group(1);
@@ -537,7 +570,7 @@ public class Controller {
     }
     
     private String[] splitPropertyLines(String propertyLine) {
-        String[] propertyParts = propertyLine.split(":");
+        String[] propertyParts = propertyLine.split(":(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
             
         for (int i = 0; i < propertyParts.length; i++) {
             propertyParts[i] = propertyParts[i].replace("\"", "").trim();
@@ -558,20 +591,14 @@ public class Controller {
                 continue;
             keyMatcher.reset(propertyLines.get(i));
             
-            if (keyMatcher.find()) {
+            if (keyMatcher.find())
                 return null;
-            }
-            if (propertyLines.get(i).equals("]")) {
+            if (propertyLines.get(i).equals("]"))
                 return entityPropertyBody;
-            }
             String[] propertyBodyParts = splitPropertyLines(propertyLines.get(i));
             
-            if (keyName.equalsIgnoreCase("spawnflags") && keyType.equalsIgnoreCase("flags") && propertyBodyParts.length == 3) {
+            if ((keyName.equalsIgnoreCase("spawnflags") && keyType.equalsIgnoreCase("flags") && propertyBodyParts.length == 3) || (keyType.equalsIgnoreCase("choices") && propertyBodyParts.length == 2))
                 entityPropertyBody.add(propertyBodyParts);
-            }
-            else if (keyType.equalsIgnoreCase("choices") && propertyBodyParts.length == 2) {
-                entityPropertyBody.add(propertyBodyParts);
-            } 
         }
         return entityPropertyBody;
     }
@@ -602,6 +629,11 @@ public class Controller {
         if (entityPropertyMap != null)
             entity.setProperties(entityPropertyMap);
         model.addEntity(entity);
+        entity.printData();
+    }
+    
+    private void createEntity() {
+        model.addEntity(new Entity(Entity.Class.BASECLASS, "classname"));
     }
     
     private void setEntityDescriptionAndURL(Entity entity, Matcher matcher) {
