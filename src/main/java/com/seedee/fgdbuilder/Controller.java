@@ -26,7 +26,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
+import javax.swing.DefaultListSelectionModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
@@ -37,6 +39,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
@@ -106,11 +109,16 @@ public class Controller {
         this.mainView.addBugReportListener(this::bugReportEventHandler);
         this.mainView.addFeedbackListener(this::feedbackEventHandler);
         this.mainView.addAboutListener(this::aboutEventHandler);
+        
+        this.mainView.addEntityListTabListener(this::entityListTabEventHandler);
+        this.mainView.addEntityListListener(this::entityListEventHandler);
+        
         this.mainView.addAddEntityListener(this::addEntityEventHandler);
         this.mainView.addCutEntityListener(this::cutEntityEventHandler);
         this.mainView.addDeleteEntityListener(this::deleteEntityEventHandler);
-        this.mainView.addEntityListTabListener(this::entityListTabEventHandler);
-        this.mainView.addEntityListListener(this::entityListEventHandler);
+        
+        this.mainView.addEntityPropertiesTableListener(this::entityPropertiesTableEventHandler);
+        this.mainView.addEntityPropertiesChoicesTableListener(this::entityPropertiesChoicesTableEventHandler);
         this.mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
     }
     
@@ -188,7 +196,7 @@ public class Controller {
         optionsView.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosed(WindowEvent e) {
-                optionsView.setInstance(null);
+                OptionsView.setInstance(null);
             }
         });
         optionsView.addToolTipsListener(this::optionsToolTipsEventHandler);
@@ -247,6 +255,7 @@ public class Controller {
         lookAndFeel.setExtraDefaults(Collections.singletonMap("@accentColor", accentColorHex));
         FlatLaf.setup(lookAndFeel);
         FlatLaf.updateUI();
+        mainView.enableEditingPanels(mainView.isEnabledEditingPanels());
         
         optionsView.closeFrame();
     }
@@ -309,34 +318,13 @@ public class Controller {
         System.out.println("About");
     }
     
-    private void addEntityEventHandler(ActionEvent e) {
-        if (!(e.getSource() instanceof JButton))
-            return;
-        createEntity();
-        refreshEntityListTab(mainView.getCurrentEntityListTab());
-        //mainView.enableFileMenuItems(true);
-        mainView.setStatusLabel("Added new Base Class entity");
-    }
-    
-    private void cutEntityEventHandler(ActionEvent e) {
-        if (!(e.getSource() instanceof JButton))
-            return;
-        System.out.println("cut");
-    }
-    
-    private void deleteEntityEventHandler(ActionEvent e) {
-        if (!(e.getSource() instanceof JButton))
-            return;
-        System.out.println("del");
-    }
-    
     private void entityListTabEventHandler(ChangeEvent e) {
         if (!(e.getSource() instanceof JTabbedPane))
             return;
         JTabbedPane entityListTabbedPane = (JTabbedPane) e.getSource();
         int newTabIndex = entityListTabbedPane.getSelectedIndex();
 
-        if (!refreshEntityListTab(newTabIndex))
+        if (!refreshEntityList(newTabIndex))
             return;
         JSplitPane splitPane = mainView.getSplitPane();
         int previousTabIndex = 0;
@@ -358,6 +346,8 @@ public class Controller {
             return;
         if (e.getValueIsAdjusting())
             return;
+        mainView.clearEditingPanelSelections();
+        
         JList<Entity> entityList = (JList<Entity>) e.getSource();
         
         if (entityList.getSelectedIndices().length != 1) {
@@ -368,7 +358,7 @@ public class Controller {
         mainView.enableEditingPanels(true);
         mainView.enableToolTips(model.hasToolTips());
         Entity selectedEntity = entityList.getSelectedValue();
-        mainView.setEntity(
+        mainView.updateEntityPanel(
                 selectedEntity.toString(),
                 selectedEntity.getDescription(),
                 selectedEntity.getURL(),
@@ -384,10 +374,55 @@ public class Controller {
         LinkedHashMap<String[], ArrayList<String[]>> selectedEntityProperties = selectedEntity.getProperties();
         
         if (selectedEntityProperties == null) {
-            mainView.setEntityProperties(null);
+            mainView.updateEntityPropertiesTable(null);
             return;
         }
-        mainView.setEntityProperties(selectedEntityProperties.keySet().toArray(new String[0][]));
+        mainView.updateEntityPropertiesTable(selectedEntityProperties.keySet().toArray(new String[0][0]));
+    }
+    
+    private void addEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        createEntity();
+        refreshEntityList(mainView.getCurrentEntityListTab());
+        //mainView.enableFileMenuItems(true);
+        mainView.setStatusLabel("Added new Base Class entity");
+    }
+    
+    private void cutEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        System.out.println("cut");
+    }
+    
+    private void deleteEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        System.out.println("del");
+    }
+    
+    private void entityPropertiesTableEventHandler(ListSelectionEvent e) {
+        if (!(e.getSource() instanceof ListSelectionModel))
+            return;
+        ListSelectionModel entityPropertiesTableListModel = (ListSelectionModel) e.getSource();
+        if (entityPropertiesTableListModel.getValueIsAdjusting() || entityPropertiesTableListModel.getSelectedIndices().length < 1 || !mainView.isEnabledEditingPanels())
+            return;
+        if (entityPropertiesTableListModel.getSelectedIndices().length != 1) {
+            mainView.enablePropertiesEditingPanel(false);
+            mainView.toggleEntityPropertiesChoicesPanel(false);
+            return;
+        }
+        mainView.enablePropertiesEditingPanel(true);
+        int row = entityPropertiesTableListModel.getSelectedIndices()[0];
+        mainView.updateEntityPropertiesEditingPanel(mainView.getSelectedEntityProperty(row));
+    }
+    
+    private void entityPropertiesChoicesTableEventHandler(ListSelectionEvent e) {
+        if (!(e.getSource() instanceof DefaultListSelectionModel))
+            return;
+        if (e.getValueIsAdjusting())
+            return;
+        System.out.println("asdf");
     }
     
     private void jackCheckBoxEventHandler(ItemEvent e) {
@@ -483,7 +518,7 @@ public class Controller {
                     }
                 }
             }
-            refreshEntityListTab(mainView.getCurrentEntityListTab());
+            refreshEntityList(mainView.getCurrentEntityListTab());
             mainView.enableFileMenuItems(true);
             
             if (reloading)
@@ -524,7 +559,7 @@ public class Controller {
             if (!keyMatcher.find())
                 continue;
             keyName = keyMatcher.group(1);
-            keyType = keyMatcher.group(2);
+            keyType = keyMatcher.group(2).toLowerCase();
             String lastPropertyPart = propertyParts[propertyParts.length - 1];
             boolean foundPropertyBody = false;
             
@@ -533,14 +568,14 @@ public class Controller {
                     break;
                 propertyParts[propertyParts.length - 1] = lastPropertyPart.substring(0, lastPropertyPart.length() - 1).trim();
 
-                if (keyName.equalsIgnoreCase("spawnflags") && keyType.equalsIgnoreCase("flags") || keyType.equalsIgnoreCase("choices"))
+                if (keyName.equalsIgnoreCase("spawnflags") && keyType.equals("flags") || keyType.equals("choices"))
                     foundPropertyBody = true;
             }
             String keySmartEditName = null;
             String keyDefaultValue = null;
             String keyDescription = null;
             
-            if (propertyParts.length > 1 && !(keyName.equalsIgnoreCase("spawnflags") && !keyType.equalsIgnoreCase("flags"))) {
+            if (propertyParts.length > 1 && !(keyName.equalsIgnoreCase("spawnflags") && !keyType.equals("flags"))) {
                 if (!propertyParts[1].isBlank())
                     keySmartEditName = propertyParts[1];
 
@@ -597,7 +632,7 @@ public class Controller {
                 return entityPropertyBody;
             String[] propertyBodyParts = splitPropertyLines(propertyLines.get(i));
             
-            if ((keyName.equalsIgnoreCase("spawnflags") && keyType.equalsIgnoreCase("flags") && propertyBodyParts.length == 3) || (keyType.equalsIgnoreCase("choices") && propertyBodyParts.length == 2))
+            if ((keyName.equalsIgnoreCase("spawnflags") && keyType.equals("flags") && propertyBodyParts.length == 3) || (keyType.equals("choices") && propertyBodyParts.length == 2))
                 entityPropertyBody.add(propertyBodyParts);
         }
         return entityPropertyBody;
@@ -702,7 +737,7 @@ public class Controller {
             entity.setStudio(matcher.group(1).trim());
     }
     
-    private boolean refreshEntityListTab(int tabIndex) {
+    private boolean refreshEntityList(int tabIndex) {
         ListSelectionListener[] listeners = mainView.getEntityListListeners();
         
         for (ListSelectionListener listener : listeners)
@@ -720,4 +755,3 @@ public class Controller {
         return true;
     }
 }
-
