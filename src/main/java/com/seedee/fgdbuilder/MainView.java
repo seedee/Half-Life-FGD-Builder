@@ -44,6 +44,7 @@ import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
 
@@ -138,12 +139,7 @@ public class MainView {
     private final JPanel entityPropertiesEditingPanel = new JPanel(entityPropertiesEditingPanelLayout);
     private final DefaultTableModel entityPropertiesChoicesTableModel = new DefaultTableModel(
         new Object[]{"Value", "SmartEdit Name"}, 0
-    ) {
-        @Override
-        public boolean isCellEditable(int row, int col) {
-            return false;
-        }
-    };
+    );
     private final JTable entityPropertiesChoicesTable = new JTable(entityPropertiesChoicesTableModel);
     private final JScrollPane entityPropertiesChoicesTablePanel = new JScrollPane(entityPropertiesChoicesTable);
     
@@ -156,6 +152,24 @@ public class MainView {
     private final JTextField entityPropertyDescriptionTextField = new JTextField();
     
     private final JPanel entityFlagsPanel = new JPanel(new MigLayout("insets 0, gap 0, ltr, wrap 1", "[fill, grow]"));
+    private final DefaultTableModel entityFlagsTableModel = new DefaultTableModel(
+        new Object[]{"Flag", "Name", "Enabled by Default"}, 0
+    ) {
+        @Override
+        public boolean isCellEditable(int row, int col) {
+            return col == 1 || col == 2;
+        }
+        
+        @Override
+        public Class<?> getColumnClass(int col) {
+            Class c = String.class;
+            
+            if (col == 2)
+                c = Boolean.class;
+            return c;
+        }
+    };
+    private final JTable entityFlagsTable = new JTable(entityFlagsTableModel);
     
     private boolean jackFeaturesEnabled;
     private final JCheckBox jackCheckBox = new JCheckBox("Enable J.A.C.K. Features");
@@ -186,7 +200,7 @@ public class MainView {
         createEntityPropertiesPanel();
         entityTabbedPane.addTab("Properties", new JScrollPane(entityPropertiesPanel));
         
-        createEntityFlagsPanel(40);
+        createEntityFlagsPanel();
         entityTabbedPane.addTab("Flags", new JScrollPane(entityFlagsPanel));
         
         enableEditingPanels(false);
@@ -251,18 +265,6 @@ public class MainView {
         aboutMenuItem.addActionListener(listener);
     }
     
-    public void addAddEntityListener(ActionListener listener) {
-        addEntityButton.addActionListener(listener);
-    }
-    
-    public void addCutEntityListener(ActionListener listener) {
-        cutEntityButton.addActionListener(listener);
-    }
-    
-    public void addDeleteEntityListener(ActionListener listener) {
-        deleteEntityButton.addActionListener(listener);
-    }
-    
     public void addEntityListTabListener(ChangeListener listener) {
         entityListTabbedPane.addChangeListener(listener);
     }
@@ -277,6 +279,18 @@ public class MainView {
     
     public void removeEntityListListener(ListSelectionListener listener) {
         entityList.removeListSelectionListener(listener);
+    }
+    
+    public void addAddEntityListener(ActionListener listener) {
+        addEntityButton.addActionListener(listener);
+    }
+    
+    public void addCutEntityListener(ActionListener listener) {
+        cutEntityButton.addActionListener(listener);
+    }
+    
+    public void addDeleteEntityListener(ActionListener listener) {
+        deleteEntityButton.addActionListener(listener);
     }
     
     public void addEntityPropertiesTableListener(ListSelectionListener listener) {
@@ -343,11 +357,15 @@ public class MainView {
         entityListModel.clear();
     }
     
-    public void clearEditingPanelSelections() {
+    public void clearEntityPropertiesTableSelections() {
         entityPropertiesTable.clearSelection();
         ListSelectionModel entityPropertiesTableSelectionModel = entityPropertiesTable.getSelectionModel();
         entityPropertiesTableSelectionModel.clearSelection();
-        
+    }
+    
+    public void clearEntityPropertiesChoicesTableSelections() {
+        if (entityPropertiesChoicesTable.isEditing())
+            entityPropertiesChoicesTable.getCellEditor().stopCellEditing();
         entityPropertiesChoicesTable.clearSelection();
         ListSelectionModel entityPropertiesChoicesTableSelectionModel = entityPropertiesChoicesTable.getSelectionModel();
         entityPropertiesChoicesTableSelectionModel.clearSelection();
@@ -358,6 +376,7 @@ public class MainView {
         setEnabledChildren(entityPanel, enabled);
         setEnabledChildren(entityPropertiesPanel, enabled);
         setEnabledChildren(entityPropertiesEditingPanel, false);
+        setEnabledChildren(entityFlagsPanel, enabled);
         toggleEntityPropertiesChoicesPanel(false);
         enableJackFeatures(jackFeaturesEnabled);
     }
@@ -474,8 +493,11 @@ public class MainView {
             setEnabledChildren(entityPropertiesEditingPanel, false);
             return;
         }
-        for (String[] entityProperty : entityProperties)
+        for (String[] entityProperty : entityProperties) {
+            if (entityProperty[0].equalsIgnoreCase("spawnflags") && entityProperty[1].equals("flags"))
+                continue;
             entityPropertiesTableModel.addRow(entityProperty);
+        }
     }
     
     public String[] getSelectedEntityProperty(int row) {
@@ -494,7 +516,7 @@ public class MainView {
         return entityProperty;
     }
     
-    public void updateEntityPropertiesEditingPanel(String[] entityProperty) {
+    public void updateEntityPropertiesEditingPanel(String[] entityProperty, ArrayList<String[]> entityPropertyBody) {
         if (entityProperty.length != entityPropertiesTable.getColumnCount())
             return;
         entityPropertyKeyTextField.setText(entityProperty[0]);
@@ -508,10 +530,18 @@ public class MainView {
         }
         if (entityPropertyTypeComboBox.getSelectedIndex() == -1)
             entityPropertyTypeComboBox.getEditor().setItem(entityProperty[1]);
-        toggleEntityPropertiesChoicesPanel(entityProperty[1].equalsIgnoreCase("choices"));
         entityPropertyNameTextField.setText(entityProperty[2]);
         entityPropertyValueTextField.setText(entityProperty[3]);
         entityPropertyDescriptionTextField.setText(entityProperty[4]);
+        entityPropertiesChoicesTableModel.setRowCount(0);
+        
+        if (!entityProperty[1].equalsIgnoreCase("choices") || entityPropertyBody == null) {
+            toggleEntityPropertiesChoicesPanel(false);
+            return;
+        }
+        for (String[] entityPropertyChoice : entityPropertyBody)
+            entityPropertiesChoicesTableModel.addRow(entityPropertyChoice);
+        toggleEntityPropertiesChoicesPanel(true);
     }
     
     public void toggleEntityPropertiesChoicesPanel(boolean visible) {
@@ -585,7 +615,7 @@ public class MainView {
         bugReportMenuItem = createMenuItem("Report a Bug", KeyEvent.VK_R, true);
         helpMenu.add(bugReportMenuItem);
         
-        feedbackMenuItem = createMenuItem("Request a Feature", KeyEvent.VK_S, true);
+        feedbackMenuItem = createMenuItem("Feature Request", KeyEvent.VK_S, true);
         helpMenu.add(feedbackMenuItem);
         helpMenu.addSeparator();
         
@@ -686,12 +716,16 @@ public class MainView {
         entityPropertiesPanel.add(group1, "span");
         
         JPanel group2 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 1, ltr", "[fill, grow]"));
+        DefaultTableCellRenderer centerCellRenderer = new DefaultTableCellRenderer();
+        centerCellRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        entityPropertiesTable.getColumnModel().getColumn(3).setCellRenderer(centerCellRenderer);
         group2.add(new JScrollPane(entityPropertiesTable));
         entityPropertiesPanel.add(group2, "span");
         
         entityPropertiesEditingPanel.add(new JLabel("Key:"));
         entityPropertiesEditingPanel.add(entityPropertyKeyTextField);
         entityPropertiesChoicesTable.setFillsViewportHeight(false);
+        entityPropertiesChoicesTable.getColumnModel().getColumn(0).setCellRenderer(centerCellRenderer);
         entityPropertiesEditingPanel.add(entityPropertiesChoicesTablePanel, "span 1 5, gapx rel, wmax 40%, hmax " + entityPropertyKeyTextField.getPreferredSize().getHeight() * 5 + " + rel * 4");
         
         entityPropertiesEditingPanel.add(new JLabel("Type:"));
@@ -725,8 +759,21 @@ public class MainView {
         toggleEntityPropertiesChoicesPanel(false);
     }
     
-    private void createEntityFlagsPanel(int labelColumnWidth) {
+    private void createEntityFlagsPanel() {
+        JPanel group1 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 2, ltr"));
+        group1.add(new JButton("^"));
+        group1.add(new JButton("v"));
+        entityFlagsPanel.add(group1, "span");
         
+        JPanel group2 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 1, ltr", "[fill, grow]"));
+        
+        for (int i = 0; i < 24; i++) {
+            entityFlagsTableModel.addRow(new Object[] {
+                (int) Math.pow(2, i), "Data 2", false
+            });
+        }
+        group2.add(new JScrollPane(entityFlagsTable));
+        entityFlagsPanel.add(group2);
     }
     
     private void setToolTips() {
@@ -760,7 +807,7 @@ public class MainView {
             "Path to the sprite.",
             "Path to the model. In J.A.C.K, this supports formats such as BSP, MD2, MD3, etc.",
             "Renders decals on nearby surfaces in the 3D view.<br>This requires a <code>texture</code> keyvalue to work."
-        };
+        }; //Default value: If blank, keyvalue will not be added to the entity by default.
         
         for (int i = 0; i < components.length; i++)
             components[i].setToolTipText("<html>" + toolTips[i] + "</html>");
