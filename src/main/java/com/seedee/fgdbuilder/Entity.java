@@ -201,7 +201,7 @@ public class Entity {
             ArrayList<String[]> propertyBody = entry.getValue();
 
             if (propertyBody == null)
-                return;
+                continue;
             for (int i = 0; i < propertyBody.size(); i++)
                 System.out.println("         " + Arrays.toString(propertyBody.get(i)));
         }
