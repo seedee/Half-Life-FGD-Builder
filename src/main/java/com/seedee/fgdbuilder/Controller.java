@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import javax.swing.DefaultListSelectionModel;
 import javax.swing.JButton;
@@ -69,6 +68,7 @@ public class Controller {
     private final MainView mainView;
     private OptionsView optionsView;
     private final Model model;
+    private Entity selectedEntity;
     
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -111,11 +111,11 @@ public class Controller {
         this.mainView.addAboutListener(this::aboutEventHandler);
         
         this.mainView.addEntityListTabListener(this::entityListTabEventHandler);
-        this.mainView.addEntityListListener(this::entityListEventHandler);
         
         this.mainView.addAddEntityListener(this::addEntityEventHandler);
         this.mainView.addCutEntityListener(this::cutEntityEventHandler);
         this.mainView.addDeleteEntityListener(this::deleteEntityEventHandler);
+        this.mainView.addEntityListListener(this::entityListEventHandler);
         
         this.mainView.addEntityPropertiesTableListener(this::entityPropertiesTableEventHandler);
         this.mainView.addEntityPropertiesChoicesTableListener(this::entityPropertiesChoicesTableEventHandler);
@@ -341,12 +341,60 @@ public class Controller {
         }
     }
     
+    private void addEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        switch(mainView.getCurrentEntityListTab()) {
+            case 0 -> {
+                createEntity(Entity.Class.BASECLASS);
+                mainView.setStatusLabel("Added new base entity");
+            }
+            case 1 -> {
+                createEntity(Entity.Class.SOLIDCLASS);
+                mainView.setStatusLabel("Added new solid entity");
+            }
+            case 2 -> {
+                createEntity(Entity.Class.POINTCLASS);
+                mainView.setStatusLabel("Added new point entity");
+            }
+            default -> { return; }
+        }
+        refreshEntityList(mainView.getCurrentEntityListTab());
+        //mainView.enableFileMenuItems(true);
+    }
+    
+    private void cutEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        System.out.println("cut");
+    }
+    
+    private void deleteEntityEventHandler(ActionEvent e) {
+        if (!(e.getSource() instanceof JButton))
+            return;
+        int result = mainView.showConfirmDialog(
+                "Are you sure you want to delete *entity name* or *n entities*?",
+                "Delete entity/entities",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+        /*if (result != JOptionPane.OK_OPTION) {
+            jackCheckBox.setSelected(false);
+            mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
+            return;
+        }
+        jackCheckBox.setSelected(true);
+        mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
+        mainView.enableJackFeatures(true);*/
+    }
+    
     private void entityListEventHandler(ListSelectionEvent e) {
         if (!(e.getSource() instanceof JList))
             return;
         if (e.getValueIsAdjusting())
             return;
-        mainView.clearEditingPanelSelections();
+        mainView.clearEntityPropertiesChoicesTableSelections();
+        mainView.clearEntityPropertiesTableSelections();
         
         JList<Entity> entityList = (JList<Entity>) e.getSource();
         
@@ -357,7 +405,7 @@ public class Controller {
         }
         mainView.enableEditingPanels(true);
         mainView.enableToolTips(model.hasToolTips());
-        Entity selectedEntity = entityList.getSelectedValue();
+        selectedEntity = entityList.getSelectedValue();
         mainView.updateEntityPanel(
                 selectedEntity.toString(),
                 selectedEntity.getDescription(),
@@ -380,31 +428,12 @@ public class Controller {
         mainView.updateEntityPropertiesTable(selectedEntityProperties.keySet().toArray(new String[0][0]));
     }
     
-    private void addEntityEventHandler(ActionEvent e) {
-        if (!(e.getSource() instanceof JButton))
-            return;
-        createEntity();
-        refreshEntityList(mainView.getCurrentEntityListTab());
-        //mainView.enableFileMenuItems(true);
-        mainView.setStatusLabel("Added new Base Class entity");
-    }
-    
-    private void cutEntityEventHandler(ActionEvent e) {
-        if (!(e.getSource() instanceof JButton))
-            return;
-        System.out.println("cut");
-    }
-    
-    private void deleteEntityEventHandler(ActionEvent e) {
-        if (!(e.getSource() instanceof JButton))
-            return;
-        System.out.println("del");
-    }
-    
     private void entityPropertiesTableEventHandler(ListSelectionEvent e) {
         if (!(e.getSource() instanceof ListSelectionModel))
             return;
+        mainView.clearEntityPropertiesChoicesTableSelections();
         ListSelectionModel entityPropertiesTableListModel = (ListSelectionModel) e.getSource();
+        
         if (entityPropertiesTableListModel.getValueIsAdjusting() || entityPropertiesTableListModel.getSelectedIndices().length < 1 || !mainView.isEnabledEditingPanels())
             return;
         if (entityPropertiesTableListModel.getSelectedIndices().length != 1) {
@@ -413,16 +442,30 @@ public class Controller {
             return;
         }
         mainView.enablePropertiesEditingPanel(true);
-        int row = entityPropertiesTableListModel.getSelectedIndices()[0];
-        mainView.updateEntityPropertiesEditingPanel(mainView.getSelectedEntityProperty(row));
+        String[] entityProperty = mainView.getSelectedEntityProperty(entityPropertiesTableListModel.getSelectedIndices()[0]);
+        ArrayList<String[]> entityPropertyBody = null;
+        
+        if (entityProperty[1].equalsIgnoreCase("choices")) {
+            LinkedHashMap<String[], ArrayList<String[]>> selectedEntityProperties = selectedEntity.getProperties();
+            
+            for (Map.Entry<String[], ArrayList<String[]>> entry : selectedEntityProperties.entrySet()) {
+                if (entry.getKey()[1].equalsIgnoreCase("choices")) {
+                    entityPropertyBody = entry.getValue();
+                    break;
+                }
+            }
+        }
+        mainView.updateEntityPropertiesEditingPanel(entityProperty, entityPropertyBody);
     }
     
     private void entityPropertiesChoicesTableEventHandler(ListSelectionEvent e) {
-        if (!(e.getSource() instanceof DefaultListSelectionModel))
+        /*if (!(e.getSource() instanceof ListSelectionModel))
             return;
-        if (e.getValueIsAdjusting())
+        ListSelectionModel entityPropertiesChoicesTableListModel = (ListSelectionModel) e.getSource();
+        
+        if (entityPropertiesChoicesTableListModel.getValueIsAdjusting() || entityPropertiesChoicesTableListModel.getSelectedIndices().length < 1 || !mainView.isEnabledEditingPanels())
             return;
-        System.out.println("asdf");
+        //Do nothing for now*/
     }
     
     private void jackCheckBoxEventHandler(ItemEvent e) {
@@ -547,6 +590,7 @@ public class Controller {
         ArrayList<String> propertyLines = new ArrayList<>(Arrays.asList(entityProperties.toString().split("\n")));
         Matcher keyMatcher = model.getEntityPropertyPattern(0).matcher("");
         
+        parsePropertyLines:
         for (int i = 0; i < propertyLines.size(); i++) {
             String[] propertyParts = splitPropertyLines(propertyLines.get(i));
             
@@ -559,6 +603,11 @@ public class Controller {
             if (!keyMatcher.find())
                 continue;
             keyName = keyMatcher.group(1);
+            
+            for (String[] entityProperty : entityPropertyMap.keySet()) {
+                if (entityProperty[0].equals(keyName))
+                    continue parsePropertyLines;
+            }
             keyType = keyMatcher.group(2).toLowerCase();
             String lastPropertyPart = propertyParts[propertyParts.length - 1];
             boolean foundPropertyBody = false;
@@ -567,7 +616,7 @@ public class Controller {
                 if (i == propertyLines.size() - 1)
                     break;
                 propertyParts[propertyParts.length - 1] = lastPropertyPart.substring(0, lastPropertyPart.length() - 1).trim();
-
+                
                 if (keyName.equalsIgnoreCase("spawnflags") && keyType.equals("flags") || keyType.equals("choices"))
                     foundPropertyBody = true;
             }
@@ -596,8 +645,12 @@ public class Controller {
             entityProperty[3] = keyDefaultValue;
             entityProperty[4] = keyDescription;
             
-            if (foundPropertyBody)
-                entityPropertyMap.put(entityProperty, parseEntityPropertyBody(propertyLines, keyMatcher, keyName, keyType, i));
+            if (foundPropertyBody) {
+                ArrayList<String[]> entityPropertyBody = parseEntityPropertyBody(propertyLines, keyMatcher, keyName, keyType, i);
+                if (entityPropertyBody == null)
+                    continue;
+                entityPropertyMap.put(entityProperty, entityPropertyBody);
+            }
             else
                 entityPropertyMap.put(entityProperty, null);
         }
@@ -629,12 +682,14 @@ public class Controller {
             if (keyMatcher.find())
                 return null;
             if (propertyLines.get(i).equals("]"))
-                return entityPropertyBody;
+                break;
             String[] propertyBodyParts = splitPropertyLines(propertyLines.get(i));
             
             if ((keyName.equalsIgnoreCase("spawnflags") && keyType.equals("flags") && propertyBodyParts.length == 3) || (keyType.equals("choices") && propertyBodyParts.length == 2))
                 entityPropertyBody.add(propertyBodyParts);
         }
+        if (entityPropertyBody.isEmpty())
+            return null;
         return entityPropertyBody;
     }
     
@@ -667,8 +722,8 @@ public class Controller {
         entity.printData();
     }
     
-    private void createEntity() {
-        model.addEntity(new Entity(Entity.Class.BASECLASS, "classname"));
+    private void createEntity(Entity.Class entClass) {
+        model.addEntity(new Entity(entClass, "classname"));
     }
     
     private void setEntityDescriptionAndURL(Entity entity, Matcher matcher) {
