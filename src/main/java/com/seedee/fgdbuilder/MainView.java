@@ -371,6 +371,14 @@ public class MainView {
         entityPropertiesChoicesTableSelectionModel.clearSelection();
     }
     
+    public void clearEntityFlagsTableSelections() {
+        if (entityFlagsTable.isEditing())
+            entityFlagsTable.getCellEditor().stopCellEditing();
+        entityFlagsTable.clearSelection();
+        ListSelectionModel entityFlagsTableSelectionModel = entityFlagsTable.getSelectionModel();
+        entityFlagsTableSelectionModel.clearSelection();
+    }
+    
     public final void enableEditingPanels(boolean enabled) {
         editingPanelsEnabled = enabled;
         setEnabledChildren(entityPanel, enabled);
@@ -558,6 +566,21 @@ public class MainView {
         entityPropertiesEditingPanelLayout.setComponentConstraints(entityPropertyAddChoiceButton, "gap 0");
         entityPropertiesEditingPanelLayout.setComponentConstraints(entityPropertyRemoveChoiceButton, "gap 0");
         entityPropertiesEditingPanelLayout.setComponentConstraints(entityPropertiesChoicesTablePanel, "span 1 5, gap 0");
+    }
+    
+    public void updateEntityFlagsTable(ArrayList<String[]> entityFlagsList) {
+        entityFlagsTableModel.setRowCount(0);
+        
+        if (entityFlagsList == null)
+            return;
+        for (String[] entityFlag : entityFlagsList) {
+            boolean enabledByDefault = false;
+            
+            if (entityFlag[2].equals("1"))
+                enabledByDefault = true;
+            Object[] entityFlagRow = { entityFlag[0], entityFlag[1], enabledByDefault };
+            entityFlagsTableModel.addRow(entityFlagRow);
+        }
     }
     
     public void setStatusLabel(String text) {
@@ -760,18 +783,12 @@ public class MainView {
     }
     
     private void createEntityFlagsPanel() {
-        JPanel group1 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 2, ltr"));
-        group1.add(new JButton("^"));
-        group1.add(new JButton("v"));
+        JPanel group1 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 4, ltr"));
+        group1.add(new JButton("+"));
+        group1.add(new JButton("-"));
         entityFlagsPanel.add(group1, "span");
         
         JPanel group2 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 1, ltr", "[fill, grow]"));
-        
-        for (int i = 0; i < 24; i++) {
-            entityFlagsTableModel.addRow(new Object[] {
-                (int) Math.pow(2, i), "Data 2", false
-            });
-        }
         group2.add(new JScrollPane(entityFlagsTable));
         entityFlagsPanel.add(group2);
     }

@@ -321,6 +321,9 @@ public class Controller {
     private void entityListTabEventHandler(ChangeEvent e) {
         if (!(e.getSource() instanceof JTabbedPane))
             return;
+        mainView.clearEntityPropertiesChoicesTableSelections();
+        mainView.clearEntityPropertiesTableSelections();
+        mainView.clearEntityFlagsTableSelections();
         JTabbedPane entityListTabbedPane = (JTabbedPane) e.getSource();
         int newTabIndex = entityListTabbedPane.getSelectedIndex();
 
@@ -395,7 +398,7 @@ public class Controller {
             return;
         mainView.clearEntityPropertiesChoicesTableSelections();
         mainView.clearEntityPropertiesTableSelections();
-        
+        mainView.clearEntityFlagsTableSelections();
         JList<Entity> entityList = (JList<Entity>) e.getSource();
         
         if (entityList.getSelectedIndices().length != 1) {
@@ -423,9 +426,20 @@ public class Controller {
         
         if (selectedEntityProperties == null) {
             mainView.updateEntityPropertiesTable(null);
+            mainView.updateEntityFlagsTable(null);
             return;
         }
-        mainView.updateEntityPropertiesTable(selectedEntityProperties.keySet().toArray(new String[0][0]));
+        LinkedHashMap<String[], ArrayList<String[]>> keyValuesMap = new LinkedHashMap<>(selectedEntityProperties);
+        keyValuesMap.entrySet().removeIf(entry -> entry.getKey().length >= 2 && entry.getKey()[0].equals("spawnflags") && entry.getKey()[1].equals("flags"));
+        mainView.updateEntityPropertiesTable(keyValuesMap.keySet().toArray(new String[0][0]));
+        
+        for (String[] key : selectedEntityProperties.keySet()) {
+            if (key[0].equals("spawnflags") && key[1].equals("flags")) {
+                mainView.updateEntityFlagsTable(selectedEntityProperties.get(key));
+                return;
+            }
+        }
+        mainView.updateEntityFlagsTable(null);
     }
     
     private void entityPropertiesTableEventHandler(ListSelectionEvent e) {
