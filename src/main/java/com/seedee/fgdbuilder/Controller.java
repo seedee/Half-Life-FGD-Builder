@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
-import javax.swing.DefaultListSelectionModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
@@ -98,28 +97,31 @@ public class Controller {
         this.mainView = mainView;
         this.mainView.enableToolTips(model.hasToolTips());
         this.mainView.setToolTipsDelay(model.getToolTipsDelay());
+        initializeEventHandlers();
+    }
+    
+    private void initializeEventHandlers() {
+        mainView.addLoadListener(this::loadEventHandler);
+        mainView.addReloadListener(this::reloadEventHandler);
+        mainView.addCloseListener(this::closeEventHandler);
+        mainView.addExitListener(this::exitEventHandler);
+        mainView.addOptionsListener(this::optionsEventHandler);
+        mainView.addLogListener(this::logEventHandler);
+        mainView.addVdcListener(this::vdcEventHandler);
+        mainView.addBugReportListener(this::bugReportEventHandler);
+        mainView.addFeedbackListener(this::feedbackEventHandler);
+        mainView.addAboutListener(this::aboutEventHandler);
         
-        this.mainView.addLoadListener(this::loadEventHandler);
-        this.mainView.addReloadListener(this::reloadEventHandler);
-        this.mainView.addCloseListener(this::closeEventHandler);
-        this.mainView.addExitListener(this::exitEventHandler);
-        this.mainView.addOptionsListener(this::optionsEventHandler);
-        this.mainView.addLogListener(this::logEventHandler);
-        this.mainView.addVdcListener(this::vdcEventHandler);
-        this.mainView.addBugReportListener(this::bugReportEventHandler);
-        this.mainView.addFeedbackListener(this::feedbackEventHandler);
-        this.mainView.addAboutListener(this::aboutEventHandler);
+        mainView.addEntityListTabListener(this::entityListTabEventHandler);
         
-        this.mainView.addEntityListTabListener(this::entityListTabEventHandler);
+        mainView.addAddEntityListener(this::addEntityEventHandler);
+        mainView.addCutEntityListener(this::cutEntityEventHandler);
+        mainView.addDeleteEntityListener(this::deleteEntityEventHandler);
+        mainView.addEntityListListener(this::entityListEventHandler);
         
-        this.mainView.addAddEntityListener(this::addEntityEventHandler);
-        this.mainView.addCutEntityListener(this::cutEntityEventHandler);
-        this.mainView.addDeleteEntityListener(this::deleteEntityEventHandler);
-        this.mainView.addEntityListListener(this::entityListEventHandler);
+        mainView.addEntityPropertiesTableListener(this::entityPropertiesTableEventHandler);
         
-        this.mainView.addEntityPropertiesTableListener(this::entityPropertiesTableEventHandler);
-        this.mainView.addEntityPropertiesChoicesTableListener(this::entityPropertiesChoicesTableEventHandler);
-        this.mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
+        mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
     }
     
     private void loadEventHandler(ActionEvent e) {
@@ -422,24 +424,21 @@ public class Controller {
                 selectedEntity.getSprite(),
                 selectedEntity.isDecal(),
                 selectedEntity.getStudio());
-        LinkedHashMap<String[], ArrayList<String[]>> selectedEntityProperties = selectedEntity.getProperties();
+        LinkedHashMap<String[], ArrayList<String[]>> selectedEntityPropertyMap = selectedEntity.getProperties();
         
-        if (selectedEntityProperties == null) {
+        if (selectedEntityPropertyMap == null) {
             mainView.updateEntityPropertiesTable(null);
             mainView.updateEntityFlagsTable(null);
             return;
         }
-        LinkedHashMap<String[], ArrayList<String[]>> keyValuesMap = new LinkedHashMap<>(selectedEntityProperties);
-        keyValuesMap.entrySet().removeIf(entry -> entry.getKey().length >= 2 && entry.getKey()[0].equals("spawnflags") && entry.getKey()[1].equals("flags"));
-        mainView.updateEntityPropertiesTable(keyValuesMap.keySet().toArray(new String[0][0]));
+        mainView.updateEntityPropertiesTable(selectedEntityPropertyMap.keySet().toArray(new String[0][0]));
+        ArrayList<String[]> selectedEntityFlags = null;
         
-        for (String[] key : selectedEntityProperties.keySet()) {
-            if (key[0].equals("spawnflags") && key[1].equals("flags")) {
-                mainView.updateEntityFlagsTable(selectedEntityProperties.get(key));
-                return;
-            }
+        for (Map.Entry<String[], ArrayList<String[]>> entry : selectedEntityPropertyMap.entrySet()) {
+            if (entry.getKey()[0].equalsIgnoreCase("spawnflags") && entry.getKey()[1].equals("flags"))
+                selectedEntityFlags = entry.getValue();
         }
-        mainView.updateEntityFlagsTable(null);
+        mainView.updateEntityFlagsTable(selectedEntityFlags);
     }
     
     private void entityPropertiesTableEventHandler(ListSelectionEvent e) {
@@ -470,16 +469,6 @@ public class Controller {
             }
         }
         mainView.updateEntityPropertiesEditingPanel(entityProperty, entityPropertyBody);
-    }
-    
-    private void entityPropertiesChoicesTableEventHandler(ListSelectionEvent e) {
-        /*if (!(e.getSource() instanceof ListSelectionModel))
-            return;
-        ListSelectionModel entityPropertiesChoicesTableListModel = (ListSelectionModel) e.getSource();
-        
-        if (entityPropertiesChoicesTableListModel.getValueIsAdjusting() || entityPropertiesChoicesTableListModel.getSelectedIndices().length < 1 || !mainView.isEnabledEditingPanels())
-            return;
-        //Do nothing for now*/
     }
     
     private void jackCheckBoxEventHandler(ItemEvent e) {
