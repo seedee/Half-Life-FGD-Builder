@@ -15,6 +15,8 @@ import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
+import javax.swing.DefaultCellEditor;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -156,11 +158,6 @@ public class MainView {
         new Object[]{"Flag", "Name", "Enabled by Default"}, 0
     ) {
         @Override
-        public boolean isCellEditable(int row, int col) {
-            return col == 1 || col == 2;
-        }
-        
-        @Override
         public Class<?> getColumnClass(int col) {
             Class c = String.class;
             
@@ -169,8 +166,9 @@ public class MainView {
             return c;
         }
     };
+    private final JComboBox<Integer> entityFlagsTableComboBox = new JComboBox<>();
     private final JTable entityFlagsTable = new JTable(entityFlagsTableModel);
-    
+            
     private boolean jackFeaturesEnabled;
     private final JCheckBox jackCheckBox = new JCheckBox("Enable J.A.C.K. Features");
     
@@ -295,10 +293,6 @@ public class MainView {
     
     public void addEntityPropertiesTableListener(ListSelectionListener listener) {
         entityPropertiesTable.getSelectionModel().addListSelectionListener(listener);
-    }
-    
-    public void addEntityPropertiesChoicesTableListener(ListSelectionListener listener) {
-        entityPropertiesChoicesTable.getSelectionModel().addListSelectionListener(listener);
     }
     
     public void addJackCheckBoxListener(ItemListener listener) {
@@ -442,9 +436,26 @@ public class MainView {
             return;
         entityURLTextField.setEnabled(enabled);
         
-        for (JCheckBox entityFlagsCheckBox : entityFlagsCheckBoxes) {
+        for (JCheckBox entityFlagsCheckBox : entityFlagsCheckBoxes)
             entityFlagsCheckBox.setEnabled(enabled);
+        DefaultComboBoxModel<String> entityPropertyTypeComboBoxModel = (DefaultComboBoxModel<String>) entityPropertyTypeComboBox.getModel();
+        
+        if (enabled) {
+            if (entityPropertyTypeComboBox.getEditor().getItem().equals("sky")) {
+                entityPropertyTypeComboBox.addItem("sky");
+                entityPropertyTypeComboBox.setSelectedIndex(entityPropertyTypeComboBoxModel.getSize() - 1); //Without this enabling the checkbox will clear the text if it's already set to sky
+                return;
+            }
+            entityPropertyTypeComboBox.addItem("sky");
+            return;
         }
+        for (int i = 0; i < entityPropertyTypeComboBoxModel.getSize(); i++) {
+            if (entityPropertyTypeComboBoxModel.getElementAt(i).equals("sky")) {
+                entityPropertyTypeComboBox.removeItemAt(i);
+                break;
+            }
+        }
+        
     }
     
     public final void enableToolTips(boolean hasToolTips) {
@@ -547,8 +558,8 @@ public class MainView {
             toggleEntityPropertiesChoicesPanel(false);
             return;
         }
-        for (String[] entityPropertyChoice : entityPropertyBody)
-            entityPropertiesChoicesTableModel.addRow(entityPropertyChoice);
+        for (String[] entityPropertyChoiceRow : entityPropertyBody)
+            entityPropertiesChoicesTableModel.addRow(entityPropertyChoiceRow);
         toggleEntityPropertiesChoicesPanel(true);
     }
     
@@ -568,12 +579,12 @@ public class MainView {
         entityPropertiesEditingPanelLayout.setComponentConstraints(entityPropertiesChoicesTablePanel, "span 1 5, gap 0");
     }
     
-    public void updateEntityFlagsTable(ArrayList<String[]> entityFlagsList) {
+    public void updateEntityFlagsTable(ArrayList<String[]> entityFlags) {
         entityFlagsTableModel.setRowCount(0);
         
-        if (entityFlagsList == null)
+        if (entityFlags == null)
             return;
-        for (String[] entityFlag : entityFlagsList) {
+        for (String[] entityFlag : entityFlags) {
             boolean enabledByDefault = false;
             
             if (entityFlag[2].equals("1"))
@@ -763,8 +774,6 @@ public class MainView {
         entityPropertyTypeComboBox.addItem("target_source");
         entityPropertyTypeComboBox.addItem("target_destination");
         
-        if (jackCheckBox.isSelected())
-            entityPropertyTypeComboBox.addItem("sky");
         entityPropertiesEditingPanel.add(entityPropertyTypeComboBox, "split 3");
         entityPropertiesEditingPanel.add(entityPropertyAddChoiceButton, "grow 0");
         entityPropertiesEditingPanel.add(entityPropertyRemoveChoiceButton, "grow 0");
@@ -789,6 +798,10 @@ public class MainView {
         entityFlagsPanel.add(group1, "span");
         
         JPanel group2 = new JPanel(new MigLayout("insets 5pt 5pt 0 5pt, wrap 1, ltr", "[fill, grow]"));
+        
+        for (int i = 0; i < 24; i++)
+            entityFlagsTableComboBox.addItem((int) Math.pow(2, i));
+        entityFlagsTable.getColumnModel().getColumn(0).setCellEditor(new DefaultCellEditor(entityFlagsTableComboBox));
         group2.add(new JScrollPane(entityFlagsTable));
         entityFlagsPanel.add(group2);
     }
@@ -807,7 +820,12 @@ public class MainView {
             entityColorCheckBox,
             entitySpriteTextField,
             entityStudioTextField,
-            entityDecalCheckBox
+            entityDecalCheckBox,
+            entityPropertyKeyTextField,
+            entityPropertyTypeComboBox,
+            entityPropertyNameTextField,
+            entityPropertyValueTextField,
+            entityPropertyDescriptionTextField
         };
         
         String[] toolTips = {
@@ -823,8 +841,13 @@ public class MainView {
             "Sets the entity wireframe color in 2D views,<br>and 3D view if no model or sprite present.",
             "Path to the sprite.",
             "Path to the model. In J.A.C.K, this supports formats such as BSP, MD2, MD3, etc.",
-            "Renders decals on nearby surfaces in the 3D view.<br>This requires a <code>texture</code> keyvalue to work."
-        }; //Default value: If blank, keyvalue will not be added to the entity by default.
+            "Renders decals on nearby surfaces in the 3D view.<br>This requires a <code>texture</code> keyvalue to work.",
+            "The name of the key.",
+            "The type of the key, controls if you see a text box,<br>color picker, file browser, dropdown, etc. in the editor.",
+            "The name of the key shown with SmartEdit enabled.",
+            "The default value of the key. If this is left blank,<br>key will not be added to the entity by default, but is still shown in SmartEdit.<br>If key type is set to choices, this should match a choice in the table and can be blank.",
+            "The description of the key, shown in the entity's help window."
+        };
         
         for (int i = 0; i < components.length; i++)
             components[i].setToolTipText("<html>" + toolTips[i] + "</html>");
