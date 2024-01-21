@@ -33,7 +33,7 @@ public class Entity {
     private String sprite; // iconsprite\("*([^"]*)"*\)
     private boolean decal; // decal\(([^)]*)\)
     private String studio; // studio\("*([^"]*)"*\)
-    private LinkedHashMap<String[], ArrayList<String[]>> propertyMap;
+    private LinkedHashMap<String[], ArrayList<String[]>> propertyMap; //Includes keyvalues and spawnflags as a string array, any choices or flags in an arraylist
     
     public Entity(Class entClass, String name) {
         this.entClass = entClass;
@@ -193,9 +193,8 @@ public class Entity {
             for (int i = 0; i < property.length; i++) {
                 System.out.print(property[i]);
                 
-                if (i < property.length - 1) {
+                if (i < property.length - 1)
                     System.out.print(", ");
-                }
             }
             System.out.println();
             ArrayList<String[]> propertyBody = entry.getValue();
