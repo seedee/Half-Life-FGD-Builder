@@ -42,7 +42,9 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TableModelEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.DefaultTableModel;
 
 /**
  *
@@ -120,6 +122,7 @@ public class Controller {
         mainView.addEntityListListener(this::entityListEventHandler);
         
         mainView.addEntityPropertiesTableListener(this::entityPropertiesTableEventHandler);
+        mainView.addEntityPropertiesChoicesTableListener(this::entityPropertiesChoicesTableEventHandler);
         
         mainView.addJackCheckBoxListener(this::jackCheckBoxEventHandler);
     }
@@ -431,7 +434,7 @@ public class Controller {
             mainView.updateEntityFlagsTable(null);
             return;
         }
-        mainView.updateEntityPropertiesTable(selectedEntityPropertyMap.keySet().toArray(new String[0][0]));
+        mainView.updateEntityPropertiesTable(selectedEntityPropertyMap);
         ArrayList<String[]> selectedEntityFlags = null;
         
         for (Map.Entry<String[], ArrayList<String[]>> entry : selectedEntityPropertyMap.entrySet()) {
@@ -454,21 +457,20 @@ public class Controller {
             mainView.toggleEntityPropertiesChoicesPanel(false);
             return;
         }
-        mainView.enablePropertiesEditingPanel(true);
-        String[] entityProperty = mainView.getSelectedEntityProperty(entityPropertiesTableListModel.getSelectedIndices()[0]);
-        ArrayList<String[]> entityPropertyBody = null;
+        String[] selectedEntityProperty = mainView.getSelectedEntityProperty(entityPropertiesTableListModel.getSelectedIndices()[0]);
+        ArrayList<String[]> selectedEntityPropertyBody = null;
         
-        if (entityProperty[1].equalsIgnoreCase("choices")) {
-            LinkedHashMap<String[], ArrayList<String[]>> selectedEntityProperties = selectedEntity.getProperties();
-            
-            for (Map.Entry<String[], ArrayList<String[]>> entry : selectedEntityProperties.entrySet()) {
-                if (entry.getKey()[1].equalsIgnoreCase("choices")) {
-                    entityPropertyBody = entry.getValue();
-                    break;
-                }
-            }
-        }
-        mainView.updateEntityPropertiesEditingPanel(entityProperty, entityPropertyBody);
+        if (selectedEntityProperty[1].equalsIgnoreCase("choices"))
+            selectedEntityPropertyBody = mainView.getSelectedEntityPropertyBody(entityPropertiesTableListModel.getSelectedIndices()[0]);
+        mainView.enablePropertiesEditingPanel(true);
+        mainView.updateEntityPropertiesEditingPanel(selectedEntityProperty, selectedEntityPropertyBody);
+    }
+    
+    private void entityPropertiesChoicesTableEventHandler(TableModelEvent e) {
+        if (!(e.getSource() instanceof DefaultTableModel))
+            return;
+        //get selected table row
+        //update the arraylist in that row with the new choices table
     }
     
     private void jackCheckBoxEventHandler(ItemEvent e) {
