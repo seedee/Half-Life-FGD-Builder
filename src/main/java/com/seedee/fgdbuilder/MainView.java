@@ -15,6 +15,8 @@ import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
@@ -46,6 +48,7 @@ import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import net.miginfocom.swing.MigLayout;
@@ -128,7 +131,7 @@ public class MainView {
     
     private final JPanel entityPropertiesPanel = new JPanel(new MigLayout("insets 0, gap 0, ltr, wrap 1", "[fill, grow]", "[][180pt][]"));
     private final DefaultTableModel entityPropertiesTableModel = new DefaultTableModel(
-        new Object[]{"Key", "Type", "SmartEdit Name", "Default Value", "Description"}, 0
+        new Object[]{"Key", "Type", "SmartEdit Name", "Default Value", "Description", null}, 0
     ) {
         @Override
         public boolean isCellEditable(int row, int col) {
@@ -168,7 +171,9 @@ public class MainView {
     };
     private final JComboBox<Integer> entityFlagsTableComboBox = new JComboBox<>();
     private final JTable entityFlagsTable = new JTable(entityFlagsTableModel);
-            
+    
+    private final JButton saveEntityButton = new JButton("Save Entity");
+    private final JButton resetEntityButton = new JButton("Reset Entity");
     private boolean jackFeaturesEnabled;
     private final JCheckBox jackCheckBox = new JCheckBox("Enable J.A.C.K. Features");
     
@@ -203,7 +208,7 @@ public class MainView {
         
         enableEditingPanels(false);
         rightPanel.add(entityTabbedPane, BorderLayout.CENTER);
-        rightPanel.add(createJackPanel(), BorderLayout.SOUTH);
+        rightPanel.add(createCommandsPanel(), BorderLayout.SOUTH);
         
         //Split pane
         createEntityListTabs();
@@ -295,6 +300,10 @@ public class MainView {
         entityPropertiesTable.getSelectionModel().addListSelectionListener(listener);
     }
     
+    public void addEntityPropertiesChoicesTableListener(TableModelListener listener) {
+        entityPropertiesChoicesTableModel.addTableModelListener(listener);
+    }
+    
     public void addJackCheckBoxListener(ItemListener listener) {
         jackCheckBox.addItemListener(listener);
     }
@@ -380,6 +389,8 @@ public class MainView {
         setEnabledChildren(entityPropertiesEditingPanel, false);
         setEnabledChildren(entityFlagsPanel, enabled);
         toggleEntityPropertiesChoicesPanel(false);
+        setEnabledChildren(saveEntityButton, enabled);
+        setEnabledChildren(resetEntityButton, enabled);
         enableJackFeatures(jackFeaturesEnabled);
     }
     
@@ -505,27 +516,28 @@ public class MainView {
         entityStudioTextField.setText(studio);
     }
     
-    public void updateEntityPropertiesTable(String[][] entityProperties) {
+    public void updateEntityPropertiesTable(LinkedHashMap<String[], ArrayList<String[]>> entityPropertyMap) {
         entityPropertiesTableModel.setRowCount(0);
         
-        if (entityProperties == null) {
+        if (entityPropertyMap == null) {
             setEnabledChildren(entityPropertiesEditingPanel, false);
             return;
         }
-        for (String[] entityProperty : entityProperties) {
-            if (entityProperty[0].equalsIgnoreCase("spawnflags") && entityProperty[1].equals("flags"))
+        for (Map.Entry<String[], ArrayList<String[]>> entry : entityPropertyMap.entrySet()) {
+            if (entry.getKey()[0].equalsIgnoreCase("spawnflags") && entry.getKey()[1].equals("flags"))
                 continue;
-            entityPropertiesTableModel.addRow(entityProperty);
+            Object[] entityPropertyRow = { entry.getKey()[0], entry.getKey()[1], entry.getKey()[2], entry.getKey()[3], entry.getKey()[4], entry.getValue() };
+            entityPropertiesTableModel.addRow(entityPropertyRow);
         }
     }
     
     public String[] getSelectedEntityProperty(int row) {
         if (row == -1)
             return null;
-        int columns = entityPropertiesTable.getColumnCount();
-        String[] entityProperty = new String[columns];
+        int propertyColumns = entityPropertiesTableModel.getColumnCount() - 1;
+        String[] entityProperty = new String[propertyColumns];
 
-        for (int i = 0; i < columns; i++) {
+        for (int i = 0; i < propertyColumns; i++) {
             if (entityPropertiesTable.getValueAt(row, i) == null) {
                 entityProperty[i] = "";
                 continue;
@@ -533,6 +545,12 @@ public class MainView {
             entityProperty[i] = String.valueOf(entityPropertiesTable.getValueAt(row, i));
         }
         return entityProperty;
+    }
+    
+    public ArrayList<String[]> getSelectedEntityPropertyBody(int row) {
+        if (row == -1)
+            return null;
+        return (ArrayList<String[]>) entityPropertiesTableModel.getValueAt(row, 5);
     }
     
     public void updateEntityPropertiesEditingPanel(String[] entityProperty, ArrayList<String[]> entityPropertyBody) {
@@ -753,6 +771,7 @@ public class MainView {
         DefaultTableCellRenderer centerCellRenderer = new DefaultTableCellRenderer();
         centerCellRenderer.setHorizontalAlignment(SwingConstants.CENTER);
         entityPropertiesTable.getColumnModel().getColumn(3).setCellRenderer(centerCellRenderer);
+        entityPropertiesTable.removeColumn(entityPropertiesTable.getColumnModel().getColumn(5));
         group2.add(new JScrollPane(entityPropertiesTable));
         entityPropertiesPanel.add(group2, "span");
         
@@ -853,12 +872,13 @@ public class MainView {
             components[i].setToolTipText("<html>" + toolTips[i] + "</html>");
     }
     
-    private JPanel createJackPanel() {
-        JPanel jackPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        jackCheckBox.setHorizontalAlignment(SwingConstants.LEFT);
-        jackPanel.add(jackCheckBox);
+    private JPanel createCommandsPanel() {
+        JPanel commandsPanel = new JPanel(new MigLayout("insets 5pt, wrap 3, ltr", "[][][grow, right]"));
+        commandsPanel.add(saveEntityButton);
+        commandsPanel.add(resetEntityButton);
+        commandsPanel.add(jackCheckBox);
         
-        return jackPanel;
+        return commandsPanel;
     }
     
     private JPanel createStatusPanel() {
